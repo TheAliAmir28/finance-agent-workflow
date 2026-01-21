@@ -1,6 +1,6 @@
 Finance Agent Workflow
 
-This project is a small but complete stock analysis tool.
+A simple, end-to-end stock analysis tool that turns plain English requests into real insights.
 
 You type a request in plain English, and the program does the rest.
 
@@ -13,7 +13,7 @@ Examples:
 The tool fetches real stock data, calculates useful metrics, creates charts, builds an HTML dashboard, and generates a readable text report.  
 It can also optionally use an AI model to write a short summary.
 
-The goal of this project is to turn raw market data into something easy to read and understand, without overcomplicating things.
+The goal of this project is to turn raw market data into clear, easy-to-understand results without overcomplicating things.
 
 
 What this project does
