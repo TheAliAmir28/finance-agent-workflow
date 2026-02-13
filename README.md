@@ -4,7 +4,7 @@ Turn a plain-English finance request into automated market analysis.
 
 This project takes a natural language request like:
 
-> "Compare AAPL vs MSFT over the last year and summarize the risk and return."
+> "Compare AAPL vs MSFT for 1y with summary"
 
 And automatically generates:
 - Historical price data
@@ -80,11 +80,32 @@ Then enter a natural-language request when prompted.
 
 ---
 
-## Example Prompt
+
+## How to Use (Prompt Format)
+
+This project currently expects a **command-style prompt** like:
+
+### Format
 
 ```
-Compare NVDA and AMZN over the last year and summarize which had better risk-adjusted returns.
+Analyze TICKER1 and TICKER2 for <range> [with summary]
 ```
+
+### Valid Examples
+
+```
+Analyze AAPL and NVDA for 1y
+Analyze AAPL and MSFT for 6mo
+Analyze TSLA and AMZN for 3mo with summary
+Analyze GOOGL and META for 2y with summary
+```
+
+### Notes
+
+- Only **two tickers** are supported per request.
+- Range examples: `3mo`, `6mo`, `1y`, `2y`
+- `with summary` enables the optional AI summary mode (if configured).
+
 
 ---
 
