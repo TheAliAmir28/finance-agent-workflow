@@ -4,6 +4,18 @@ from memory.store import MemoryStore
 from reports.synthesizer import ReportSynthesizer
 from reports.dashboard import build_dashboard
 from pathlib import Path
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Finance Agent Workflow")
+    parser.add_argument("--tickers", nargs=2, metavar=("TICKER1", "TICKER2"),
+                        help="Two tickers to analyze (e.g., --tickers AAPL NVDA)")
+    parser.add_argument("--range", default="1y",
+                        help="Time range like 3mo, 6mo, 1y, 2y (default: 1y)")
+    parser.add_argument("--summary", action="store_true",
+                        help="Enable optional AI summary")
+    return parser.parse_args()
+
 """
 Main entry point of the application.
 
@@ -14,8 +26,17 @@ def main():
     planner = Planner()
     memory = MemoryStore()
     agent = Agent(memory)
-    # Ask the user for a request
-    user_input = input("Enter your request: ")
+    # CLI usage
+    args = parse_args()
+
+    if args.tickers:
+        t1, t2 = args.tickers[0].upper(), args.tickers[1].upper()
+        user_input = f"Analyze {t1} and {t2} for {args.range}"
+        if args.summary:
+            user_input += " with summary"
+    # If CLI isn't in use
+    else:
+        user_input = input("Enter your request: ")
 
     try:
         # Convert user input into a structured plan
