@@ -114,6 +114,12 @@ Analyze TSLA and AMZN for 3mo with summary
 Analyze GOOGL and META for 2y with summary
 ```
 
+## CLI Usage (Recommended)
+
+```bash
+python main.py --tickers AAPL NVDA --range 1y --summary
+```
+
 ### Notes
 
 - Only **two tickers** are supported per request.
