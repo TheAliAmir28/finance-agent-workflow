@@ -16,6 +16,20 @@ And automatically generates:
 
 ---
 
+## Demo
+
+### Generated Dashboard + Report
+
+![Dashboard Demo](assets/dashboard-demo.png)
+
+Generated from:
+
+```
+Analyze AAPL and NVDA for 1y with summary
+```
+
+---
+
 ## What This Project Demonstrates
 
 - Data retrieval from financial APIs
