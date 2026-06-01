@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Finance Agent Workflow</title>
+    <style>
+        body {
+            font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 34%),
+                #0b0f17;
+            color: #e8eefc;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 24px;
+        }
+
+        .app-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #38bdf8;
+            color: #07111f;
+            font-weight: 900;
+        }
+
+        .brand-text {
+            display: grid;
+            gap: 2px;
+        }
+
+        .brand-text strong {
+            color: #f4f8ff;
+            font-size: 15px;
+        }
+
+        .brand-text span {
+            color: #8da0c2;
+            font-size: 12px;
+        }
+
+        .app-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 32px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(15, 22, 37, 0.78);
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            color: #dcecff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #22c55e;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+        }
+
+        .app-footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 18px;
+            color: #8da0c2;
+            font-size: 12px;
+        }
+
+        a:focus-visible,
+        button:focus-visible,
+        textarea:focus-visible,
+        summary:focus-visible {
+            outline: 2px solid #7dd3fc;
+            outline-offset: 3px;
+        }
+
+        .hero-panel {
+            background: linear-gradient(135deg, #101827 0%, #121a2a 55%, #162033 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 28px;
+            margin-bottom: 20px;
+            box-shadow: 0 14px 36px rgba(0,0,0,0.32);
+        }
+
+        .hero-copy {
+            max-width: 760px;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: #7dd3fc;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .hero-panel h1 {
+            margin: 0;
+            font-size: 34px;
+            line-height: 1.1;
+        }
+
+        .hero-subtitle {
+            max-width: 680px;
+            margin: 12px 0 0;
+            color: #b8c4dc;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .request-form label {
+            display: block;
+            margin-bottom: 8px;
+            color: #dbe7ff;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .prompt-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .prompt-chip {
+            margin: 0;
+            padding: 8px 10px;
+            border: 1px solid rgba(125, 211, 252, 0.28);
+            border-radius: 999px;
+            background: rgba(15, 22, 37, 0.72);
+            color: #dcecff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .prompt-chip:hover {
+            background: rgba(125, 211, 252, 0.12);
+        }
+
+        .run-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 140px;
+            margin-top: 16px;
+            padding: 11px 18px;
+            border-radius: 8px;
+            background: #38bdf8;
+            color: #07111f;
+            font-weight: 800;
+        }
+
+        .run-button:hover {
+            opacity: 1;
+            background: #7dd3fc;
+        }
+
+        .run-button:disabled {
+            cursor: wait;
+            opacity: 0.7;
+        }
+
+        .card {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        h1, h2 {
+            margin-top: 0;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: #0f1625;
+            color: #e8eefc;
+            font-size: 15px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 12px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.92;
+        }
+
+        .error {
+            color: #ff8080;
+            font-weight: bold;
+        }
+
+        .error-panel {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 12px;
+            background: rgba(127, 29, 29, 0.22);
+            border: 1px solid rgba(248, 113, 113, 0.34);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+        }
+
+        .error-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(248, 113, 113, 0.16);
+            color: #fecaca;
+            font-weight: 900;
+        }
+
+        .error-content h2 {
+            margin: 0 0 6px;
+            color: #fecaca;
+            font-size: 18px;
+        }
+
+        .error-content p {
+            margin: 0;
+            color: #ffd7d7;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .error-hint {
+            margin-top: 8px;
+            color: #fca5a5;
+            font-size: 13px;
+        }
+
+        .muted {
+            color: #a9b4d0;
+            font-size: 14px;
+        }
+
+        .report-box {
+            white-space: pre-wrap;
+            background: #0f1625;
+            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            margin-top: 10px;
+        }
+
+        .report-panel,
+        .insight-panel {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+        }
+
+        .report-document {
+            white-space: pre-wrap;
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-left: 3px solid #38bdf8;
+            border-radius: 8px;
+            padding: 18px;
+            color: #e8eefc;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            font-size: 14px;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+
+        .insight-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .insight-card {
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .insight-card h3 {
+            margin: 0 0 10px;
+            color: #bae6fd;
+            font-size: 15px;
+        }
+
+        .insight-text {
+            color: #dbe7ff;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        a {
+            color: #7cb3ff;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        code {
+            background: #0f1625;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .chart-panel {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .chart-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .chart-panel-header h2 {
+            margin: 0;
+        }
+
+        .chart-card {
+            background: #0f1625;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .chart-card.featured {
+            grid-column: 1 / -1;
+            border-color: rgba(56, 189, 248, 0.28);
+        }
+
+        .chart-card-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .chart-card-header h3 {
+            margin: 0;
+            color: #f4f8ff;
+            font-size: 15px;
+        }
+
+        .chart-label {
+            color: #8da0c2;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0;
+            white-space: nowrap;
+        }
+
+        .chart-image {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: #0b0f17;
+        }
+
+        .inline-links {
+            margin-top: 14px;
+        }
+
+        .inline-links a {
+            margin-right: 12px;
+        }
+
+        .summary-panel {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 16px;
+        }
+
+        .summary-header h2 {
+            margin: 0 0 6px;
+        }
+
+        .summary-meta {
+            margin: 0;
+            color: #a9b4d0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .status-pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e8eefc;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .status-pill.accent {
+            border-color: rgba(56, 189, 248, 0.45);
+            color: #bae6fd;
+        }
+
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .action-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #0f1625;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            color: #dcecff;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .action-button:hover {
+            background: rgba(125, 211, 252, 0.12);
+        }
+
+        .metrics-panel {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .metric-card h3 {
+            margin: 0 0 12px;
+            color: #f4f8ff;
+            font-size: 16px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 0;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            color: #a9b4d0;
+            font-size: 14px;
+        }
+
+        .metric-row strong {
+            color: #e8eefc;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .winner-strip {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.24);
+            color: #dcecff;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .history-panel {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .history-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .history-header h2 {
+            margin: 0;
+        }
+
+        .history-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .history-item {
+            display: grid;
+            gap: 8px;
+            padding: 14px;
+            border-radius: 8px;
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .history-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .history-title {
+            margin: 0;
+            color: #f4f8ff;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .history-time {
+            color: #8da0c2;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .history-request {
+            margin: 0;
+            color: #b8c4dc;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .history-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .history-tag {
+            display: inline-flex;
+            align-items: center;
+            min-height: 26px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #dbe7ff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .empty-state {
+            padding: 18px;
+            border-radius: 8px;
+            background: #0f1625;
+            border: 1px dashed rgba(255,255,255,0.14);
+            color: #a9b4d0;
+            font-size: 14px;
+        }
+
+        .preview-panel {
+            background: #121a2a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 0;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .preview-panel summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 18px;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .preview-panel summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .preview-title {
+            display: grid;
+            gap: 4px;
+        }
+
+        .preview-title strong {
+            color: #f4f8ff;
+            font-size: 18px;
+        }
+
+        .preview-title span {
+            color: #a9b4d0;
+            font-size: 14px;
+        }
+
+        .preview-toggle {
+            color: #bae6fd;
+            font-size: 13px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .preview-panel[open] .preview-toggle {
+            color: #7dd3fc;
+        }
+
+        .preview-frame-wrap {
+            padding: 0 18px 18px;
+        }
+
+        .dashboard-frame {
+            width: 100%;
+            min-height: 560px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            background: white;
+        }
+
+        @media (max-width: 720px) {
+            .container {
+                margin: 0 auto;
+                padding: 14px;
+            }
+
+            .app-topbar,
+            .app-footer {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .hero-panel,
+            .summary-panel,
+            .metrics-panel,
+            .report-panel,
+            .chart-panel,
+            .insight-panel,
+            .history-panel,
+            .card {
+                padding: 16px;
+                margin-bottom: 14px;
+            }
+
+            .hero-panel h1 {
+                font-size: 28px;
+            }
+
+            .hero-subtitle {
+                font-size: 15px;
+                line-height: 1.55;
+            }
+
+            textarea {
+                min-height: 130px;
+            }
+
+            .prompt-chip,
+            .run-button,
+            .action-button {
+                width: 100%;
+            }
+
+            .prompt-chip {
+                justify-content: center;
+                border-radius: 8px;
+            }
+
+            .summary-header,
+            .section-header,
+            .chart-panel-header,
+            .history-header,
+            .history-topline,
+            .preview-panel summary {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-pill-row,
+            .action-row,
+            .history-tags {
+                gap: 7px;
+            }
+
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .history-time,
+            .preview-toggle {
+                white-space: normal;
+            }
+
+            .dashboard-frame {
+                min-height: 420px;
+            }
+
+            .error-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-topbar">
+            <div class="brand-lockup">
+                <div class="brand-mark">F</div>
+                <div class="brand-text">
+                    <strong>Finance Agent</strong>
+                    <span>Research workflow</span>
+                </div>
+            </div>
+
+            <div class="app-status">
+                <span class="status-dot"></span>
+                Local app ready
+            </div>
+        </header>
+
+        <section class="hero-panel">
+            <div class="hero-copy">
+                <p class="eyebrow">Local Market Analysis</p>
+                <h1>Finance Agent Workflow</h1>
+                <p class="hero-subtitle">
+                    Analyze tickers, compare performance, generate charts, and produce a clean report from one plain-English request.
+                </p>
+            </div>
+
+            <form method="POST" class="request-form" id="analysisForm">
+                <label for="userInput">Analysis request</label>
+                <textarea
+                    id="userInput"
+                    name="user_input"
+                    placeholder="Compare AAPL and NVDA for 1 year with summary">{{ user_input }}</textarea>
+
+                <div class="prompt-row">
+                    <button type="button" class="prompt-chip" data-prompt="Analyze AAPL and NVDA for 1 year with summary">AAPL vs NVDA - 1Y</button>
+                    <button type="button" class="prompt-chip" data-prompt="Analyze TSLA for 3 months no summary">TSLA - 3MO</button>
+                    <button type="button" class="prompt-chip" data-prompt="Analyze MSFT and GOOGL for 6 months with summary">MSFT vs GOOGL - 6MO</button>
+                </div>
+
+                <button type="submit" class="run-button" id="runButton">Run Analysis</button>
+            </form>
+        </section>
+
+        {% if error %}
+        <section class="error-panel">
+            <div class="error-icon">!</div>
+            <div class="error-content">
+                <h2>Analysis could not run</h2>
+                <p>{{ error }}</p>
+                <div class="error-hint">Try checking the ticker symbols, time range, or prompt format.</div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if result %}
+        <section class="summary-panel">
+            <div class="summary-header">
+                <div>
+                    <h2>Run Summary</h2>
+                    <p class="summary-meta">Analysis complete. Review the generated report, dashboard, and run history below.</p>
+                </div>
+            </div>
+
+            <div class="status-pill-row">
+                {% for ticker in result.tickers %}
+                <span class="status-pill accent">{{ ticker }}</span>
+                {% endfor %}
+                <span class="status-pill">{{ result.period }}</span>
+                <span class="status-pill">
+                    {% if result.is_comparison %}
+                    Comparison
+                    {% else %}
+                    Single ticker
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="action-row">
+                <a class="action-button" href="/open?path={{ result.dashboard_path }}" target="_blank">Open Dashboard</a>
+                <a class="action-button" href="/open?path={{ result.report_path }}" target="_blank">Open Report</a>
+                <a class="action-button" href="/open?path={{ result.history_path }}" target="_blank">History JSON</a>
+            </div>
+        </section>
+
+        {% if metric_cards %}
+        <section class="metrics-panel">
+            <div class="section-header">
+                <h2>Metrics Overview</h2>
+                <span class="muted">Return, risk, and risk-adjusted performance</span>
+            </div>
+
+            <div class="metrics-grid">
+                {% for card in metric_cards %}
+                <article class="metric-card">
+                    <h3>{{ card.ticker }}</h3>
+                    <div class="metric-row">
+                        <span>Total return</span>
+                        <strong>{{ card.total_return }}</strong>
+                    </div>
+                    <div class="metric-row">
+                        <span>Volatility</span>
+                        <strong>{{ card.volatility }}</strong>
+                    </div>
+                    <div class="metric-row">
+                        <span>Sharpe ratio</span>
+                        <strong>{{ card.sharpe_ratio }}</strong>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            {% if comparison_result %}
+            <div class="winner-strip">
+                <strong>Winner: {{ comparison_result.winner }}</strong>
+                <br>{{ comparison_result.reason }}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <section class="report-panel">
+            <div class="section-header">
+                <h2>Report</h2>
+                <span class="muted">Generated analyst note</span>
+            </div>
+            <div class="report-document">{{ result.report }}</div>
+        </section>
+
+        {% if chart_entries or comparison_chart_path %}
+        <section class="chart-panel">
+            <div class="chart-panel-header">
+                <h2>Charts</h2>
+                <span class="muted">Generated from closing price data</span>
+            </div>
+
+            <div class="chart-grid">
+                {% for chart in chart_entries %}
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <h3>{{ chart.ticker }}</h3>
+                        <span class="chart-label">Price chart</span>
+                    </div>
+                    <img
+                        class="chart-image"
+                        src="/open?path={{ chart.path }}"
+                        alt="{{ chart.ticker }} chart">
+                </div>
+                {% endfor %}
+
+                {% if comparison_chart_path %}
+                <div class="chart-card featured">
+                    <div class="chart-card-header">
+                        <h3>Normalized Comparison</h3>
+                        <span class="chart-label">Relative performance</span>
+                    </div>
+                    <img
+                        class="chart-image"
+                        src="/open?path={{ comparison_chart_path }}"
+                        alt="Comparison chart">
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if llm_summaries %}
+        <section class="insight-panel">
+            <div class="section-header">
+                <h2>AI Summaries</h2>
+                <span class="muted">Optional narrative insights</span>
+            </div>
+
+            <div class="insight-list">
+            {% for summary in llm_summaries %}
+            <div class="insight-card">
+                <h3>{{ summary.title }}</h3>
+                <div class="insight-text">{{ summary.text }}</div>
+            </div>
+            {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if result %}
+        <details class="preview-panel">
+            <summary>
+                <span class="preview-title">
+                    <strong>Dashboard Preview</strong>
+                    <span>Open an embedded view of the generated dashboard when you need it.</span>
+                </span>
+                <span class="preview-toggle">Show preview</span>
+            </summary>
+
+            <div class="preview-frame-wrap">
+                <iframe
+                    class="dashboard-frame"
+                    src="/open?path={{ result.dashboard_path }}">
+                </iframe>
+            </div>
+        </details>
+        {% endif %}
+
+        {% endif %}
+
+        <section class="history-panel">
+            <div class="history-header">
+                <h2>Recent Runs</h2>
+                <span class="muted">Latest saved analyses</span>
+            </div>
+
+            {% if recent_runs %}
+            <div class="history-list">
+                {% for run in recent_runs %}
+                <article class="history-item">
+                    <div class="history-topline">
+                        <p class="history-title">
+                            {% if run.tickers %}
+                                {{ run.tickers|join(" vs ") }}
+                            {% else %}
+                                Analysis run
+                            {% endif %}
+                        </p>
+                        <span class="history-time">{{ run.timestamp }}</span>
+                    </div>
+
+                    <p class="history-request">{{ run.user_input }}</p>
+
+                    <div class="history-tags">
+                        {% if run.period %}
+                        <span class="history-tag">{{ run.period }}</span>
+                        {% endif %}
+
+                        {% if run.is_comparison %}
+                        <span class="history-tag">Comparison</span>
+                        {% else %}
+                        <span class="history-tag">Single ticker</span>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">No recent runs yet. Run an analysis and it will appear here.</div>
+            {% endif %}
+        </section>
+
+        <footer class="app-footer">
+            <span>Generated locally from market data.</span>
+            <span>Not financial advice.</span>
+        </footer>
+    </div>
+
+    <script>
+        const userInput = document.getElementById("userInput");
+        const promptButtons = document.querySelectorAll(".prompt-chip");
+        const analysisForm = document.getElementById("analysisForm");
+        const runButton = document.getElementById("runButton");
+
+        promptButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                userInput.value = button.dataset.prompt;
+                userInput.focus();
+            });
+        });
+
+        analysisForm.addEventListener("submit", () => {
+            runButton.disabled = true;
+            runButton.textContent = "Running analysis...";
+        });
+    </script>
+</body>
+</html>
