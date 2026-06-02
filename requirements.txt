@@ -4,3 +4,5 @@ numpy
 matplotlib
 jinja2
 openai
+flask
+gunicorn
