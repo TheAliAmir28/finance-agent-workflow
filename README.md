@@ -10,7 +10,7 @@ Analyze AAPL and NVDA for 1 year with summary
 
 The app fetches market data, calculates performance metrics, creates visualizations, and gives you a clean report you can actually read.
 
-![Dashboard demo](assets/dashboard-demo.png.png)
+![Dashboard demo](assets/dashboard-demo.png)
 
 ---
 
