@@ -26,6 +26,18 @@ def _is_cache_fresh(cache_path):
     file_age_seconds = time.time() - cache_path.stat().st_mtime
     return file_age_seconds < CACHE_MAX_AGE_SECONDS
 
+def _clean_close_prices(price_data):
+    close_prices = price_data[["Close"]].copy()
+    close_prices.index = pd.to_datetime(close_prices.index, errors="coerce", utc=True).tz_localize(None)
+    close_prices["Close"] = pd.to_numeric(close_prices["Close"], errors="coerce")
+    close_prices = close_prices.dropna(subset=["Close"])
+    close_prices = close_prices[~close_prices.index.isna()]
+
+    if close_prices.empty:
+        raise ValueError("Price data did not include valid numeric close prices.")
+
+    return close_prices
+
 # Fetch historical price data for a given stock ticker.
 def fetch_price_history(ticker, period, start_date=None, end_date=None):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -39,7 +51,7 @@ def fetch_price_history(ticker, period, start_date=None, end_date=None):
         if cached_data.empty or "Close" not in cached_data.columns:
             raise ValueError(f"Cached data for ticker {ticker} is invalid.")
 
-        return cached_data[["Close"]]
+        return _clean_close_prices(cached_data)
 
     # Otherwise fetch fresh data from Yahoo Finance
     stock = yf.Ticker(yahoo_symbol)
@@ -55,7 +67,7 @@ def fetch_price_history(ticker, period, start_date=None, end_date=None):
     if history.empty:
         raise ValueError(f"No data found for ticker: {ticker}")
 
-    close_prices = history[["Close"]]
+    close_prices = _clean_close_prices(history)
     close_prices.to_csv(cache_path)
 
     return close_prices

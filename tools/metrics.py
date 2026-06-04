@@ -1,19 +1,27 @@
 import math
+import pandas as pd
+
+def _close_series(price_data):
+    close = pd.to_numeric(price_data["Close"], errors="coerce").dropna()
+    if close.empty:
+        raise ValueError("Price data did not include valid numeric close prices.")
+    return close
 
 # Compute daily percentage returns from closing price data.
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column
 def compute_daily_returns(price_data):
     # Select the closing price, then compute percent change from previous row 
-    daily_returns = price_data["Close"].pct_change()
+    daily_returns = _close_series(price_data).pct_change()
     return daily_returns
 
 # Compute total return over the entire period.
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column
 def compute_total_return(price_data):
     # First closing price
-    start_price = price_data["Close"].iloc[0]
+    close = _close_series(price_data)
+    start_price = close.iloc[0]
     # Last closing price
-    end_price = price_data["Close"].iloc[-1]
+    end_price = close.iloc[-1]
 
     total_return = (end_price - start_price) / start_price
     return total_return
@@ -63,10 +71,16 @@ def compute_annualized_sharpe_ratio(daily_returns, risk_free_rate=0.0):
 # Measures the yearly compound growth rate over the period.
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column and datetime index
 def compute_cagr(price_data):
-    start_price = price_data["Close"].iloc[0]
-    end_price = price_data["Close"].iloc[-1]
+    close = _close_series(price_data)
+    start_price = close.iloc[0]
+    end_price = close.iloc[-1]
 
-    num_days = (price_data.index[-1] - price_data.index[0]).days
+    dates = pd.to_datetime(price_data.index, errors="coerce", utc=True).tz_localize(None)
+    dates = dates[~pd.isna(dates)]
+    if len(dates) < 2:
+        return None
+
+    num_days = (dates[-1] - dates[0]).days
     if num_days <= 0:
         return None
 
@@ -81,8 +95,9 @@ def compute_cagr(price_data):
 # Finds the worst drop from a previous peak.
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column
 def compute_max_drawdown(price_data):
-    running_max = price_data["Close"].cummax()
-    drawdowns = (price_data["Close"] - running_max) / running_max
+    close = _close_series(price_data)
+    running_max = close.cummax()
+    drawdowns = (close - running_max) / running_max
     max_drawdown = drawdowns.min()
     return max_drawdown
 
@@ -90,8 +105,9 @@ def compute_max_drawdown(price_data):
 # Returns the latest 20-day and 50-day moving averages
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column
 def compute_moving_averages(price_data):
-    ma_20_series = price_data["Close"].rolling(window=20).mean()
-    ma_50_series = price_data["Close"].rolling(window=50).mean()
+    close = _close_series(price_data)
+    ma_20_series = close.rolling(window=20).mean()
+    ma_50_series = close.rolling(window=50).mean()
 
     ma_20 = ma_20_series.iloc[-1] if len(ma_20_series) > 0 else None
     ma_50 = ma_50_series.iloc[-1] if len(ma_50_series) > 0 else None

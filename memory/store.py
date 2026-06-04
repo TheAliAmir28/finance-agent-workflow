@@ -20,3 +20,7 @@ class MemoryStore:
     # Clear: Resets memory
     def clear(self):
         self._store.clear()
+
+    # Keys: Allows callers to inspect stored result names.
+    def keys(self):
+        return self._store.keys()

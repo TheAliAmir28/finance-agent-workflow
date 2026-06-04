@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_file, abort, redirect, url_for, jsonify
 from pathlib import Path
 from datetime import datetime
+import logging
 import re
 import yfinance as yf
 from main import run_analysis_from_request
@@ -594,6 +595,7 @@ def index():
                         llm_summaries.append(build_llm_summary_card("Comparison AI Summary", comparison_llm))
 
             except Exception as e:
+                logging.exception("Analysis request failed")
                 error = str(e)
 
     recent_runs = load_recent_history(limit=5)

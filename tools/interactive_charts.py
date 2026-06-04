@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import json
 
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.utils import PlotlyJSONEncoder
 
 
 CHART_COLORS = ["#38bdf8", "#f97316"]
+
+
+def _close_series(price_data):
+    close = pd.to_numeric(price_data["Close"], errors="coerce").dropna()
+    if close.empty:
+        raise ValueError("price_data must include valid numeric Close prices.")
+    return close
 
 
 def _figure_to_json(fig: go.Figure) -> str:
@@ -66,14 +74,14 @@ def build_price_chart_json(price_data, ticker: str, period: str) -> str:
         raise ValueError("price_data must include Close prices for an interactive chart.")
 
     ticker = ticker.upper()
-    close = price_data["Close"]
+    close = _close_series(price_data)
     start_price = close.iloc[0]
     returns = (close / start_price - 1) * 100
 
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
-            x=price_data.index,
+            x=close.index,
             y=close,
             mode="lines",
             name=ticker,
@@ -104,8 +112,8 @@ def build_comparison_chart_json(
     fig = go.Figure()
     for idx, (ticker, close_prices) in enumerate(
         (
-            (ticker_a, price_data_a["Close"]),
-            (ticker_b, price_data_b["Close"]),
+            (ticker_a, _close_series(price_data_a)),
+            (ticker_b, _close_series(price_data_b)),
         )
     ):
         growth = (close_prices / close_prices.iloc[0] - 1) * 100
