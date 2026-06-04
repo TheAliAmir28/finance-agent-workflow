@@ -9,6 +9,7 @@ import matplotlib
 # This is important when running on servers or from scripts.
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import pandas as pd
 
 """
 Make sure a directory exists.
@@ -16,6 +17,13 @@ If it already exists, do nothing.
 """
 def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
+
+def _clean_close_series(price_data):
+    close = pd.to_numeric(price_data["Close"], errors="coerce").dropna()
+    if close.empty:
+        raise ValueError("price_data must include valid numeric Close prices.")
+    return close
 
 
 def plot_close_price_line(
@@ -44,7 +52,8 @@ def plot_close_price_line(
 
     # Make the plot
     plt.figure()
-    plt.plot(price_data.index, price_data["Close"])
+    close = _clean_close_series(price_data)
+    plt.plot(close.index, close)
     plt.title(f"{ticker} Close Price ({period})")
     plt.xlabel("Date")
     plt.ylabel("Price")
@@ -72,8 +81,10 @@ def plot_comparison_normalized(
         raise ValueError("Price data missing for comparison chart.")
 
     # Normalize prices
-    norm_a = price_data_a["Close"] / price_data_a["Close"].iloc[0]
-    norm_b = price_data_b["Close"] / price_data_b["Close"].iloc[0]
+    close_a = _clean_close_series(price_data_a)
+    close_b = _clean_close_series(price_data_b)
+    norm_a = close_a / close_a.iloc[0]
+    norm_b = close_b / close_b.iloc[0]
 
     ticker_a = ticker_a.upper()
     ticker_b = ticker_b.upper()
