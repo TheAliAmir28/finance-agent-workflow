@@ -4,21 +4,135 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Finance Agent Workflow</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <style>
+        :root {
+            --bg: #0b0f17;
+            --panel: #121a2a;
+            --surface: #0f1625;
+            --surface-strong: #111827;
+            --text: #e8eefc;
+            --text-strong: #f4f8ff;
+            --muted: #8da0c2;
+            --muted-strong: #a9b4d0;
+            --line: rgba(255,255,255,0.08);
+            --line-strong: rgba(255,255,255,0.12);
+            --shadow: rgba(0,0,0,0.25);
+            --accent-cyan: #38bdf8;
+            --accent-cyan-light: #7dd3fc;
+            --accent-cyan-soft: rgba(56,189,248,0.10);
+            --accent-cyan-line: rgba(125,211,252,0.28);
+            --accent-green: #22c55e;
+            --accent-green-text: #86efac;
+            --accent-green-soft: rgba(34,197,94,0.10);
+            --accent-amber: #f59e0b;
+            --accent-rose: #f87171;
+            --accent-rose-text: #fca5a5;
+            --accent-rose-soft: rgba(248,113,113,0.12);
+            --ink-on-accent: #07111f;
+        }
+
         body {
             font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
             background:
-                radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 34%),
-                #0b0f17;
-            color: #e8eefc;
+                radial-gradient(circle at top left, var(--accent-cyan-soft), transparent 34%),
+                var(--bg);
+            color: var(--text);
             margin: 0;
             padding: 0;
+            min-height: 100vh;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 18px;
         }
 
         .container {
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 24px;
+            width: min(1800px, calc(100vw - 48px));
+            margin: 28px auto;
+            padding: 24px 0;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .quick-nav {
+            position: sticky;
+            top: 24px;
+            display: grid;
+            gap: 12px;
+            margin-top: 54px;
+            padding: 8px 0 8px 22px;
+            background:
+                linear-gradient(90deg, color-mix(in srgb, var(--panel) 72%, transparent), transparent 78%);
+        }
+
+        .quick-nav::before {
+            content: "";
+            position: absolute;
+            left: 2px;
+            top: 8px;
+            bottom: 8px;
+            width: 1px;
+            background: color-mix(in srgb, var(--accent-cyan-light) 28%, transparent);
+        }
+
+        .quick-nav-title {
+            color: var(--accent-cyan-light);
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .quick-nav a {
+            position: relative;
+            display: block;
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: #c8d4ec;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 800;
+            transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .quick-nav a::before {
+            content: "";
+            position: absolute;
+            left: -22px;
+            top: 50%;
+            width: 5px;
+            height: 5px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--accent-cyan-light) 45%, transparent);
+            transform: translate(0, -50%);
+            transition: height 160ms ease, background 160ms ease, box-shadow 160ms ease;
+        }
+
+        .quick-nav a:hover,
+        .quick-nav a:focus-visible,
+        .quick-nav a.active {
+            background: var(--accent-cyan-soft);
+            color: var(--text-strong);
+            transform: translateX(2px);
+        }
+
+        .quick-nav a:hover::before,
+        .quick-nav a:focus-visible::before,
+        .quick-nav a.active::before {
+            height: 22px;
+            background: var(--accent-cyan-light);
+            box-shadow: 0 0 14px var(--accent-cyan-soft);
+        }
+
+        .main-column {
+            min-width: 0;
         }
 
         .app-topbar {
@@ -42,8 +156,8 @@
             width: 36px;
             height: 36px;
             border-radius: 8px;
-            background: #38bdf8;
-            color: #07111f;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan-light));
+            color: var(--ink-on-accent);
             font-weight: 900;
         }
 
@@ -53,13 +167,13 @@
         }
 
         .brand-text strong {
-            color: #f4f8ff;
-            font-size: 15px;
+            color: var(--text-strong);
+            font-size: 17px;
         }
 
         .brand-text span {
-            color: #8da0c2;
-            font-size: 12px;
+            color: var(--muted);
+            font-size: 14px;
         }
 
         .app-status {
@@ -70,9 +184,9 @@
             padding: 6px 10px;
             border-radius: 999px;
             background: rgba(15, 22, 37, 0.78);
-            border: 1px solid rgba(125, 211, 252, 0.24);
+            border: 1px solid color-mix(in srgb, var(--accent-green) 34%, transparent);
             color: #dcecff;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: 700;
         }
 
@@ -80,8 +194,8 @@
             width: 8px;
             height: 8px;
             border-radius: 999px;
-            background: #22c55e;
-            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+            background: var(--accent-green);
+            box-shadow: 0 0 0 4px var(--accent-green-soft);
         }
 
         .app-footer {
@@ -89,21 +203,23 @@
             justify-content: space-between;
             gap: 12px;
             margin-top: 18px;
-            color: #8da0c2;
-            font-size: 12px;
+            color: var(--muted);
+            font-size: 14px;
         }
 
         a:focus-visible,
         button:focus-visible,
         textarea:focus-visible,
         summary:focus-visible {
-            outline: 2px solid #7dd3fc;
+            outline: 2px solid var(--accent-cyan-light);
             outline-offset: 3px;
         }
 
         .hero-panel {
-            background: linear-gradient(135deg, #101827 0%, #121a2a 55%, #162033 100%);
-            border: 1px solid rgba(255,255,255,0.1);
+            background:
+                radial-gradient(circle at 94% 8%, var(--accent-cyan-soft), transparent 30%),
+                linear-gradient(135deg, #101827 0%, var(--panel) 55%, #162033 100%);
+            border: 1px solid var(--line-strong);
             border-radius: 10px;
             padding: 28px;
             margin-bottom: 20px;
@@ -111,14 +227,14 @@
         }
 
         .hero-copy {
-            max-width: 760px;
+            max-width: 980px;
             margin-bottom: 22px;
         }
 
         .eyebrow {
             margin: 0 0 8px;
-            color: #7dd3fc;
-            font-size: 13px;
+            color: var(--accent-cyan-light);
+            font-size: 15px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0;
@@ -126,15 +242,15 @@
 
         .hero-panel h1 {
             margin: 0;
-            font-size: 34px;
+            font-size: 36px;
             line-height: 1.1;
         }
 
         .hero-subtitle {
-            max-width: 680px;
+            max-width: 900px;
             margin: 12px 0 0;
             color: #b8c4dc;
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1.6;
         }
 
@@ -142,30 +258,37 @@
             display: block;
             margin-bottom: 8px;
             color: #dbe7ff;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
         }
 
-        .prompt-row {
+        .control-row {
             display: flex;
             flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .form-control {
+            display: grid;
             gap: 8px;
-            margin-top: 12px;
+            width: min(220px, 100%);
         }
 
-        .prompt-chip {
-            margin: 0;
-            padding: 8px 10px;
-            border: 1px solid rgba(125, 211, 252, 0.28);
-            border-radius: 999px;
-            background: rgba(15, 22, 37, 0.72);
-            color: #dcecff;
-            font-size: 13px;
-            cursor: pointer;
+        .form-control label {
+            margin-bottom: 0;
         }
 
-        .prompt-chip:hover {
-            background: rgba(125, 211, 252, 0.12);
+        .form-select {
+            width: 100%;
+            min-height: 42px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--accent-cyan-line);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 16px;
+            font-weight: 800;
         }
 
         .run-button {
@@ -176,14 +299,14 @@
             margin-top: 16px;
             padding: 11px 18px;
             border-radius: 8px;
-            background: #38bdf8;
-            color: #07111f;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan-light));
+            color: var(--ink-on-accent);
             font-weight: 800;
         }
 
         .run-button:hover {
             opacity: 1;
-            background: #7dd3fc;
+            background: linear-gradient(135deg, var(--accent-cyan-light), var(--accent-cyan));
         }
 
         .run-button:disabled {
@@ -209,10 +332,10 @@
             min-height: 110px;
             padding: 12px;
             border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: #0f1625;
-            color: #e8eefc;
-            font-size: 15px;
+            border: 1px solid var(--line-strong);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 17px;
             resize: vertical;
             box-sizing: border-box;
         }
@@ -224,7 +347,7 @@
             border-radius: 10px;
             background: #2563eb;
             color: white;
-            font-size: 15px;
+            font-size: 17px;
             cursor: pointer;
         }
 
@@ -233,7 +356,7 @@
         }
 
         .error {
-            color: #ff8080;
+            color: var(--accent-rose-text);
             font-weight: bold;
         }
 
@@ -242,7 +365,7 @@
             grid-template-columns: auto 1fr;
             gap: 12px;
             background: rgba(127, 29, 29, 0.22);
-            border: 1px solid rgba(248, 113, 113, 0.34);
+            border: 1px solid color-mix(in srgb, var(--accent-rose) 42%, transparent);
             border-radius: 10px;
             padding: 16px;
             margin-bottom: 20px;
@@ -256,7 +379,7 @@
             width: 32px;
             height: 32px;
             border-radius: 8px;
-            background: rgba(248, 113, 113, 0.16);
+            background: var(--accent-rose-soft);
             color: #fecaca;
             font-weight: 900;
         }
@@ -264,25 +387,25 @@
         .error-content h2 {
             margin: 0 0 6px;
             color: #fecaca;
-            font-size: 18px;
+            font-size: 20px;
         }
 
         .error-content p {
             margin: 0;
             color: #ffd7d7;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.6;
         }
 
         .error-hint {
             margin-top: 8px;
-            color: #fca5a5;
-            font-size: 13px;
+            color: var(--accent-rose-text);
+            font-size: 15px;
         }
 
         .muted {
             color: #a9b4d0;
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .report-box {
@@ -295,13 +418,26 @@
         }
 
         .report-panel,
-        .insight-panel {
-            background: #121a2a;
-            border: 1px solid rgba(255,255,255,0.08);
+        .insight-panel,
+        .fundamentals-panel,
+        .earnings-panel,
+        .news-panel,
+        .chart-panel,
+        .metrics-panel,
+        .analyst-panel,
+        .history-panel {
+            --section-accent: var(--accent-cyan);
+            --section-accent-soft: var(--accent-cyan-soft);
+            --section-accent-line: var(--accent-cyan-line);
+            background:
+                linear-gradient(90deg, var(--section-accent-soft), transparent 34%),
+                var(--panel);
+            border: 1px solid var(--line);
+            border-top: 3px solid var(--section-accent);
             border-radius: 10px;
             padding: 18px;
             margin-bottom: 20px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            box-shadow: 0 6px 18px var(--shadow);
         }
 
         .section-header {
@@ -312,47 +448,440 @@
             margin-bottom: 14px;
         }
 
+        .section-header h2,
+        .chart-panel-header h2,
+        .history-header h2 {
+            position: relative;
+            padding-left: 12px;
+        }
+
+        .section-header h2::before,
+        .chart-panel-header h2::before,
+        .history-header h2::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.2em;
+            bottom: 0.2em;
+            width: 4px;
+            border-radius: 999px;
+            background: var(--section-accent);
+        }
+
         .section-header h2 {
             margin: 0;
         }
 
-        .report-document {
-            white-space: pre-wrap;
+        .report-summary-grid {
+            display: grid;
+            grid-template-columns: minmax(220px, 0.65fr) minmax(320px, 1.35fr);
+            gap: 14px;
+        }
+
+        .report-overview-card,
+        .report-metrics-card {
             background: #0f1625;
             border: 1px solid rgba(255,255,255,0.08);
-            border-left: 3px solid #38bdf8;
             border-radius: 8px;
-            padding: 18px;
-            color: #e8eefc;
-            font-family: "Segoe UI", system-ui, sans-serif;
+            padding: 14px;
+        }
+
+        .report-overview-card {
+            display: grid;
+            align-content: start;
+            gap: 14px;
+        }
+
+        .report-kicker {
+            color: #8da0c2;
             font-size: 14px;
-            line-height: 1.7;
-            overflow-x: auto;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .report-ticker-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .report-ticker-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 30px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: var(--accent-cyan-soft);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan) 34%, transparent);
+            color: #bae6fd;
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        .ticker-lockup {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .ticker-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid rgba(255,255,255,0.82);
+            object-fit: contain;
+            padding: 4px;
+            box-sizing: border-box;
+        }
+
+        .report-ticker-pill .ticker-logo {
+            width: 28px;
+            height: 28px;
+            margin-left: -4px;
+            padding: 3px;
+        }
+
+        .report-meta-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .report-meta-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            color: #a9b4d0;
+            font-size: 15px;
+        }
+
+        .report-meta-item strong {
+            color: #e8eefc;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .report-metric-groups {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 0;
+        }
+
+        .report-metric-group {
+            padding: 0 18px;
+        }
+
+        .report-metric-group:first-child {
+            padding-left: 0;
+        }
+
+        .report-metric-group + .report-metric-group {
+            border-left: 1px solid rgba(125,211,252,0.18);
+        }
+
+        .report-metric-group h3 {
+            margin: 0;
+            color: #f4f8ff;
+            font-size: 17px;
+        }
+
+        .report-metric-group .ticker-lockup {
+            margin-bottom: 10px;
+        }
+
+        .report-metric-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .report-metric-table td {
+            padding: 7px 0;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            color: #a9b4d0;
+            font-size: 15px;
+        }
+
+        .report-metric-table td:last-child {
+            color: #e8eefc;
+            text-align: right;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .fundamentals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
+        }
+
+        .fundamentals-card {
+            display: grid;
+            gap: 14px;
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .fundamentals-card h3 {
+            margin: 0;
+            color: #f4f8ff;
+            font-size: 18px;
+        }
+
+        .fundamentals-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            color: #8da0c2;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .fundamentals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .fundamentals-table td {
+            padding: 8px 0;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            color: #a9b4d0;
+            font-size: 15px;
+        }
+
+        .fundamentals-table td:last-child {
+            color: #e8eefc;
+            text-align: right;
+            font-weight: 850;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .earnings-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .earnings-card {
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .earnings-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .earnings-card-header h3 {
+            margin: 0;
+            color: #f4f8ff;
+            font-size: 18px;
+        }
+
+        .earnings-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(150px, 1fr));
+        }
+
+        .earnings-stat {
+            display: grid;
+            align-content: start;
+            gap: 5px;
+            min-height: 64px;
+            padding: 0 16px;
+            border-left: 1px solid rgba(125,211,252,0.15);
+        }
+
+        .earnings-stat:first-child {
+            border-left: 0;
+            padding-left: 0;
+        }
+
+        .earnings-stat span {
+            color: #a9b4d0;
+            font-size: 14px;
+            font-weight: 750;
+        }
+
+        .earnings-stat strong {
+            color: #f4f8ff;
+            font-size: 18px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .earnings-result {
+            font-size: 14px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .earnings-result.beat {
+            color: var(--accent-green-text);
+        }
+
+        .earnings-result.miss {
+            color: var(--accent-rose-text);
+        }
+
+        .earnings-result.met,
+        .earnings-result.neutral {
+            color: #a9b4d0;
         }
 
         .insight-list {
             display: grid;
-            gap: 12px;
+            gap: 14px;
         }
 
         .insight-card {
-            background: #0f1625;
-            border: 1px solid rgba(255,255,255,0.08);
+            display: grid;
+            gap: 14px;
+            background:
+                linear-gradient(135deg, var(--accent-cyan-soft), transparent 34%),
+                var(--surface);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan-light) 22%, transparent);
             border-radius: 8px;
-            padding: 16px;
+            padding: 18px;
         }
 
         .insight-card h3 {
-            margin: 0 0 10px;
+            margin: 0;
             color: #bae6fd;
-            font-size: 15px;
+            font-size: 18px;
         }
 
-        .insight-text {
-            color: #dbe7ff;
+        .insight-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .insight-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: var(--accent-cyan-soft);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+            color: #bae6fd;
             font-size: 14px;
-            line-height: 1.7;
-            white-space: pre-wrap;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .insight-summary {
+            margin: 0;
+            color: #dbe7ff;
+            font-size: 17px;
+            line-height: 1.65;
+        }
+
+        .takeaway-list {
+            display: grid;
+            gap: 9px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .takeaway-list li {
+            position: relative;
+            padding: 10px 12px 10px 30px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.07);
+            color: #dbe7ff;
+            font-size: 16px;
+            line-height: 1.45;
+        }
+
+        .takeaway-list li::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            top: 17px;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 0 4px var(--accent-cyan-soft);
+        }
+
+        .insight-disclaimer {
+            margin: 0;
+            color: #a9b4d0;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 14px;
+        }
+
+        .news-group {
+            display: grid;
+            gap: 12px;
+            background: #0f1625;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .news-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .news-item {
+            display: grid;
+            gap: 7px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.07);
+            text-decoration: none;
+        }
+
+        .news-item:hover {
+            border-color: var(--section-accent-line);
+            background: var(--section-accent-soft);
+        }
+
+        .news-item-title {
+            margin: 0;
+            color: #e8eefc;
+            font-size: 16px;
+            font-weight: 850;
+            line-height: 1.4;
+        }
+
+        .news-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            color: #8da0c2;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .news-summary {
+            margin: 0;
+            color: #a9b4d0;
+            font-size: 15px;
+            line-height: 1.45;
         }
 
         a {
@@ -371,17 +900,12 @@
 
         .chart-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
             gap: 16px;
         }
 
-        .chart-panel {
-            background: #121a2a;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 20px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        .chart-grid.chart-grid-double {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .chart-panel-header {
@@ -419,16 +943,55 @@
         .chart-card-header h3 {
             margin: 0;
             color: #f4f8ff;
-            font-size: 15px;
+            font-size: 17px;
         }
 
         .chart-label {
             color: #8da0c2;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0;
             white-space: nowrap;
+        }
+
+        .chart-stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .chart-stat {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #dbe7ff;
+            font-size: 14px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chart-stat span {
+            color: #8da0c2;
+            font-weight: 700;
+            margin-right: 6px;
+        }
+
+        .chart-stat.positive {
+            color: var(--accent-green-text);
+            border-color: color-mix(in srgb, var(--accent-green) 28%, transparent);
+            background: var(--accent-green-soft);
+        }
+
+        .chart-stat.negative {
+            color: var(--accent-rose-text);
+            border-color: color-mix(in srgb, var(--accent-rose) 30%, transparent);
+            background: var(--accent-rose-soft);
         }
 
         .chart-image {
@@ -439,6 +1002,64 @@
             background: #0b0f17;
         }
 
+        .interactive-chart {
+            position: relative;
+            width: 100%;
+            min-height: 390px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #0f1625;
+        }
+
+        .chart-hover-tooltip {
+            position: absolute;
+            z-index: 20;
+            display: none;
+            min-width: 128px;
+            padding: 8px 10px;
+            border: 1px solid rgba(125,211,252,0.35);
+            border-radius: 6px;
+            background: #111827;
+            color: #e8eefc;
+            font-size: 14px;
+            line-height: 1.35;
+            pointer-events: none;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+        }
+
+        .chart-hover-tooltip strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #f8fafc;
+        }
+
+        .chart-hover-guide {
+            position: absolute;
+            z-index: 12;
+            display: none;
+            width: 0;
+            border-left: 1px dotted rgba(226,232,240,0.38);
+            pointer-events: none;
+        }
+
+        .chart-hover-dot {
+            position: absolute;
+            z-index: 18;
+            display: none;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--accent-cyan);
+            border: 2px solid #f8fafc;
+            box-shadow: 0 0 0 2px #0f1625;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+
+        .chart-card.featured .interactive-chart {
+            min-height: 430px;
+        }
+
         .inline-links {
             margin-top: 14px;
         }
@@ -447,96 +1068,9 @@
             margin-right: 12px;
         }
 
-        .summary-panel {
-            background: #121a2a;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 20px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-        }
-
-        .summary-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 18px;
-            margin-bottom: 16px;
-        }
-
-        .summary-header h2 {
-            margin: 0 0 6px;
-        }
-
-        .summary-meta {
-            margin: 0;
-            color: #a9b4d0;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .status-pill-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            min-height: 32px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: #0f1625;
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #e8eefc;
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .status-pill.accent {
-            border-color: rgba(56, 189, 248, 0.45);
-            color: #bae6fd;
-        }
-
-        .action-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .action-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 38px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: #0f1625;
-            border: 1px solid rgba(125, 211, 252, 0.24);
-            color: #dcecff;
-            font-size: 14px;
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .action-button:hover {
-            background: rgba(125, 211, 252, 0.12);
-        }
-
-        .metrics-panel {
-            background: #121a2a;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 20px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-        }
-
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 12px;
         }
 
@@ -548,9 +1082,13 @@
         }
 
         .metric-card h3 {
-            margin: 0 0 12px;
+            margin: 0;
             color: #f4f8ff;
-            font-size: 16px;
+            font-size: 18px;
+        }
+
+        .metric-card .ticker-lockup {
+            margin-bottom: 12px;
         }
 
         .metric-row {
@@ -560,7 +1098,7 @@
             padding: 8px 0;
             border-top: 1px solid rgba(255,255,255,0.07);
             color: #a9b4d0;
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .metric-row strong {
@@ -568,24 +1106,173 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .metric-row small {
+            display: block;
+            margin-top: 3px;
+            color: #7f8daa;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .metric-row.live-price-row strong {
+            text-align: right;
+        }
+
+        .live-change {
+            display: block;
+            margin-top: 3px;
+            color: #7f8daa;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .live-change.positive {
+            color: var(--accent-green-text);
+        }
+
+        .live-change.negative {
+            color: var(--accent-rose-text);
+        }
+
+        .chart-stat strong {
+            color: inherit;
+            font: inherit;
+        }
+
         .winner-strip {
             margin-top: 12px;
             padding: 12px;
             border-radius: 8px;
-            background: rgba(56, 189, 248, 0.08);
-            border: 1px solid rgba(56, 189, 248, 0.24);
+            background: var(--section-accent-soft);
+            border: 1px solid var(--section-accent-line);
             color: #dcecff;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.5;
         }
 
-        .history-panel {
-            background: #121a2a;
+        .analyst-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .analyst-card {
+            display: grid;
+            gap: 14px;
+            background: #0f1625;
             border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 20px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .analyst-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .analyst-card h3 {
+            margin: 0 0 4px;
+            color: #f4f8ff;
+            font-size: 18px;
+        }
+
+        .analyst-count {
+            color: #8da0c2;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .recommendation-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 30px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: var(--accent-cyan-soft);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan) 32%, transparent);
+            color: #bae6fd;
+            font-size: 14px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .sentiment-meter {
+            display: grid;
+            gap: 7px;
+        }
+
+        .sentiment-track {
+            position: relative;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #7f1d1d 0%, var(--accent-amber) 25%, #334155 50%, #166534 75%, var(--accent-green) 100%);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+        }
+
+        .sentiment-marker {
+            position: absolute;
+            top: 50%;
+            left: var(--sentiment-position);
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            background: #e8eefc;
+            border: 3px solid #0f1625;
+            box-shadow: 0 0 0 1px rgba(125,211,252,0.45);
+            transform: translate(-50%, -50%);
+        }
+
+        .sentiment-labels {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            color: #8da0c2;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .analyst-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .analyst-stat {
+            display: grid;
+            gap: 4px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .analyst-stat span {
+            color: #8da0c2;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .analyst-stat strong {
+            color: #e8eefc;
+            font-size: 17px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .analyst-stat strong.positive {
+            color: var(--accent-green-text);
+        }
+
+        .analyst-stat strong.negative {
+            color: var(--accent-rose-text);
+        }
+
+        .analyst-note {
+            margin: 0;
+            color: #a9b4d0;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
         .history-header {
@@ -621,23 +1308,64 @@
             gap: 12px;
         }
 
+        .history-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .history-action-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 30px;
+            margin: 0;
+            padding: 5px 9px;
+            border-radius: 8px;
+            background: #0f1625;
+            border: 1px solid rgba(248, 113, 113, 0.26);
+            color: #fecaca;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .history-action-button:hover {
+            background: rgba(248, 113, 113, 0.10);
+        }
+
+        .history-action-button.rerun {
+            border-color: rgba(56, 189, 248, 0.32);
+            color: #bae6fd;
+        }
+
+        .history-action-button.rerun:hover {
+            background: rgba(56, 189, 248, 0.10);
+        }
+
+        .history-action-button.clear {
+            min-height: 34px;
+            padding: 7px 10px;
+        }
+
         .history-title {
             margin: 0;
             color: #f4f8ff;
-            font-size: 15px;
+            font-size: 17px;
             font-weight: 800;
         }
 
         .history-time {
             color: #8da0c2;
-            font-size: 12px;
+            font-size: 14px;
             white-space: nowrap;
         }
 
         .history-request {
             margin: 0;
             color: #b8c4dc;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.5;
         }
 
@@ -656,7 +1384,7 @@
             background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.08);
             color: #dbe7ff;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
         }
 
@@ -666,75 +1394,48 @@
             background: #0f1625;
             border: 1px dashed rgba(255,255,255,0.14);
             color: #a9b4d0;
-            font-size: 14px;
+            font-size: 16px;
         }
 
-        .preview-panel {
-            background: #121a2a;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 0;
-            margin-bottom: 20px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-            overflow: hidden;
-        }
+        @media (max-width: 1100px) {
+            .container {
+                width: min(960px, calc(100vw - 32px));
+            }
 
-        .preview-panel summary {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            padding: 18px;
-            cursor: pointer;
-            list-style: none;
-        }
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
 
-        .preview-panel summary::-webkit-details-marker {
-            display: none;
-        }
+            .quick-nav {
+                position: static;
+                margin-top: 0;
+            }
 
-        .preview-title {
-            display: grid;
-            gap: 4px;
-        }
+            .quick-nav-links {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
 
-        .preview-title strong {
-            color: #f4f8ff;
-            font-size: 18px;
-        }
-
-        .preview-title span {
-            color: #a9b4d0;
-            font-size: 14px;
-        }
-
-        .preview-toggle {
-            color: #bae6fd;
-            font-size: 13px;
-            font-weight: 800;
-            white-space: nowrap;
-        }
-
-        .preview-panel[open] .preview-toggle {
-            color: #7dd3fc;
-        }
-
-        .preview-frame-wrap {
-            padding: 0 18px 18px;
-        }
-
-        .dashboard-frame {
-            width: 100%;
-            min-height: 560px;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
-            background: white;
+            .chart-grid,
+            .chart-grid.chart-grid-double {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 720px) {
             .container {
+                width: auto;
                 margin: 0 auto;
                 padding: 14px;
+            }
+
+            .app-shell {
+                gap: 14px;
+            }
+
+            .quick-nav {
+                padding: 12px;
             }
 
             .app-topbar,
@@ -744,8 +1445,10 @@
             }
 
             .hero-panel,
-            .summary-panel,
             .metrics-panel,
+            .analyst-panel,
+            .earnings-panel,
+            .news-panel,
             .report-panel,
             .chart-panel,
             .insight-panel,
@@ -756,11 +1459,11 @@
             }
 
             .hero-panel h1 {
-                font-size: 28px;
+                font-size: 30px;
             }
 
             .hero-subtitle {
-                font-size: 15px;
+                font-size: 17px;
                 line-height: 1.55;
             }
 
@@ -768,44 +1471,90 @@
                 min-height: 130px;
             }
 
-            .prompt-chip,
-            .run-button,
-            .action-button {
+            .run-button {
                 width: 100%;
             }
 
-            .prompt-chip {
-                justify-content: center;
-                border-radius: 8px;
-            }
-
-            .summary-header,
             .section-header,
             .chart-panel-header,
             .history-header,
-            .history-topline,
-            .preview-panel summary {
+            .history-topline {
                 align-items: flex-start;
                 flex-direction: column;
             }
 
-            .status-pill-row,
-            .action-row,
             .history-tags {
                 gap: 7px;
             }
 
-            .chart-grid {
+            .analyst-card-top {
+                flex-direction: column;
+            }
+
+            .insight-card-header {
+                flex-direction: column;
+            }
+
+            .analyst-stat-grid {
                 grid-template-columns: 1fr;
             }
 
-            .history-time,
-            .preview-toggle {
+            .earnings-card-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .earnings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .earnings-stat {
+                border-left: 0;
+                border-top: 1px solid rgba(125,211,252,0.15);
+                padding: 10px 0 0;
+                min-height: auto;
+            }
+
+            .earnings-stat:first-child {
+                border-top: 0;
+                padding-top: 0;
+            }
+
+            .report-summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .report-metric-groups {
+                gap: 14px;
+            }
+
+            .report-metric-group {
+                padding: 0;
+            }
+
+            .report-metric-group + .report-metric-group {
+                border-left: 0;
+                border-top: 1px solid rgba(125,211,252,0.18);
+                padding-top: 14px;
+            }
+
+            .chart-grid,
+            .chart-grid.chart-grid-double {
+                grid-template-columns: 1fr;
+            }
+
+            .history-time {
                 white-space: normal;
             }
 
-            .dashboard-frame {
-                min-height: 420px;
+            .history-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .interactive-chart,
+            .chart-card.featured .interactive-chart {
+                min-height: 340px;
             }
 
             .error-panel {
@@ -816,6 +1565,22 @@
 </head>
 <body>
     <div class="container">
+        <div class="app-shell">
+            <aside class="quick-nav" aria-label="Quick navigation">
+                <div class="quick-nav-title">Quick Navigation</div>
+                <nav class="quick-nav-links">
+                    {% if metric_cards %}<a href="#metrics-overview">Metrics Overview</a>{% endif %}
+                    {% if fundamentals_cards %}<a href="#company-fundamentals">Company Fundamentals</a>{% endif %}
+                    {% if earnings_cards %}<a href="#earnings">Earnings</a>{% endif %}
+                    {% if result %}<a href="#report">Report</a>{% endif %}
+                    {% if interactive_chart_entries or interactive_comparison_chart or chart_entries or comparison_chart_path %}<a href="#interactive-charts">Interactive Charts</a>{% endif %}
+                    {% if analyst_cards %}<a href="#analyst-view">Analyst View</a>{% endif %}
+                    {% if news_cards %}<a href="#market-news">Market News</a>{% endif %}
+                    <a href="#recent-runs">Recent Runs</a>
+                </nav>
+            </aside>
+
+            <main class="main-column">
         <header class="app-topbar">
             <div class="brand-lockup">
                 <div class="brand-mark">F</div>
@@ -836,7 +1601,7 @@
                 <p class="eyebrow">Local Market Analysis</p>
                 <h1>Finance Agent Workflow</h1>
                 <p class="hero-subtitle">
-                    Analyze tickers, compare performance, generate charts, and produce a clean report from one plain-English request.
+                    Analyze stocks and crypto, compare performance, generate charts, and produce a clean report from one plain-English request.
                 </p>
             </div>
 
@@ -845,12 +1610,26 @@
                 <textarea
                     id="userInput"
                     name="user_input"
-                    placeholder="Compare AAPL and NVDA for 1 year with summary">{{ user_input }}</textarea>
+                    placeholder="Compare AAPL and BTC">{{ user_input }}</textarea>
 
-                <div class="prompt-row">
-                    <button type="button" class="prompt-chip" data-prompt="Analyze AAPL and NVDA for 1 year with summary">AAPL vs NVDA - 1Y</button>
-                    <button type="button" class="prompt-chip" data-prompt="Analyze TSLA for 3 months no summary">TSLA - 3MO</button>
-                    <button type="button" class="prompt-chip" data-prompt="Analyze MSFT and GOOGL for 6 months with summary">MSFT vs GOOGL - 6MO</button>
+                <div class="control-row">
+                    <div class="form-control">
+                        <label for="intervalSelect">Time interval</label>
+                        <select class="form-select" id="intervalSelect" name="interval">
+                            {% for option in interval_options %}
+                            <option value="{{ option.value }}" {% if selected_interval == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label for="summarySelect">Summary</label>
+                        <select class="form-select" id="summarySelect" name="summary_mode">
+                            {% for option in summary_options %}
+                            <option value="{{ option.value }}" {% if selected_summary == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
                 <button type="submit" class="run-button" id="runButton">Run Analysis</button>
@@ -869,37 +1648,8 @@
         {% endif %}
 
         {% if result %}
-        <section class="summary-panel">
-            <div class="summary-header">
-                <div>
-                    <h2>Run Summary</h2>
-                    <p class="summary-meta">Analysis complete. Review the generated report, dashboard, and run history below.</p>
-                </div>
-            </div>
-
-            <div class="status-pill-row">
-                {% for ticker in result.tickers %}
-                <span class="status-pill accent">{{ ticker }}</span>
-                {% endfor %}
-                <span class="status-pill">{{ result.period }}</span>
-                <span class="status-pill">
-                    {% if result.is_comparison %}
-                    Comparison
-                    {% else %}
-                    Single ticker
-                    {% endif %}
-                </span>
-            </div>
-
-            <div class="action-row">
-                <a class="action-button" href="/open?path={{ result.dashboard_path }}" target="_blank">Open Dashboard</a>
-                <a class="action-button" href="/open?path={{ result.report_path }}" target="_blank">Open Report</a>
-                <a class="action-button" href="/open?path={{ result.history_path }}" target="_blank">History JSON</a>
-            </div>
-        </section>
-
         {% if metric_cards %}
-        <section class="metrics-panel">
+        <section class="metrics-panel" id="metrics-overview" data-auto-scroll="true">
             <div class="section-header">
                 <h2>Metrics Overview</h2>
                 <span class="muted">Return, risk, and risk-adjusted performance</span>
@@ -908,7 +1658,22 @@
             <div class="metrics-grid">
                 {% for card in metric_cards %}
                 <article class="metric-card">
-                    <h3>{{ card.ticker }}</h3>
+                    <div class="ticker-lockup">
+                        {% if card.logo_url %}
+                        <img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+                        {% endif %}
+                        <h3>{{ card.ticker }}</h3>
+                    </div>
+                    <div class="metric-row live-price-row">
+                        <span>
+                            Live price
+                            <small data-live-status="{{ card.ticker }}">Updating shortly</small>
+                        </span>
+                        <strong>
+                            <span data-live-price="{{ card.ticker }}">N/A</span>
+                            <span class="live-change" data-live-change="{{ card.ticker }}"></span>
+                        </strong>
+                    </div>
                     <div class="metric-row">
                         <span>Total return</span>
                         <strong>{{ card.total_return }}</strong>
@@ -934,47 +1699,292 @@
         </section>
         {% endif %}
 
-        <section class="report-panel">
+        {% if fundamentals_cards %}
+        <section class="fundamentals-panel" id="company-fundamentals">
+            <div class="section-header">
+                <h2>Company Fundamentals</h2>
+                <span class="muted">Valuation, growth, and income snapshot</span>
+            </div>
+
+            <div class="fundamentals-grid">
+                {% for card in fundamentals_cards %}
+                <article class="fundamentals-card">
+                    <div class="ticker-lockup">
+                        {% if card.logo_url %}
+                        <img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+                        {% endif %}
+                        <div>
+                            <h3>{{ card.company_name }}</h3>
+                            <div class="fundamentals-meta">
+                                <span>{{ card.ticker }}</span>
+                                <span>{{ card.sector }}</span>
+                                <span>{{ card.industry }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if card.available %}
+                    <table class="fundamentals-table">
+                        {% for row in card.rows %}
+                        <tr>
+                            <td>{{ row.label }}</td>
+                            <td>{{ row.value }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% else %}
+                    <p class="analyst-note">Fundamental data is unavailable for this ticker right now.</p>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if earnings_cards %}
+        <section class="earnings-panel" id="earnings">
+            <div class="section-header">
+                <h2>Earnings</h2>
+                <span class="muted">Latest report and upcoming call</span>
+            </div>
+
+            <div class="earnings-list">
+                {% for card in earnings_cards %}
+                <article class="earnings-card">
+                    <div class="earnings-card-header">
+                        <div class="ticker-lockup">
+                            {% if card.logo_url %}
+                            <img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+                            {% endif %}
+                            <h3>{{ card.ticker }}</h3>
+                        </div>
+                    </div>
+
+                    {% if card.available %}
+                    <div class="earnings-grid">
+                        <div class="earnings-stat">
+                            <span>Last report</span>
+                            <strong>{{ card.last_report_label }}</strong>
+                        </div>
+                        <div class="earnings-stat">
+                            <span>Fiscal period</span>
+                            <strong>{{ card.fiscal_period }}</strong>
+                        </div>
+                        <div class="earnings-stat">
+                            <span>EPS / Est. (USD)</span>
+                            <strong>{{ card.eps_actual }} / {{ card.eps_estimate }}</strong>
+                            {% if card.eps_has_surprise %}
+                            <div class="earnings-result {{ card.eps_result_class }}">{{ card.eps_surprise }} {{ card.eps_result }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="earnings-stat">
+                            <span>Revenue / Est. (USD)</span>
+                            <strong>{{ card.revenue_actual }} / {{ card.revenue_estimate }}</strong>
+                            {% if card.revenue_has_surprise %}
+                            <div class="earnings-result {{ card.revenue_result_class }}">{{ card.revenue_surprise }} {{ card.revenue_result }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="earnings-stat">
+                            <span>Next earnings call</span>
+                            <strong>{{ card.next_call_label }}</strong>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="analyst-note">Earnings data is unavailable for this ticker right now.</p>
+                    {% if card.error %}
+                    <p class="analyst-note">{{ card.error }}</p>
+                    {% endif %}
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="report-panel" id="report">
             <div class="section-header">
                 <h2>Report</h2>
                 <span class="muted">Generated analyst note</span>
             </div>
-            <div class="report-document">{{ result.report }}</div>
+
+            <div class="report-summary-grid">
+                <aside class="report-overview-card">
+                    <div>
+                        <div class="report-kicker">
+                            {% if result.is_comparison %}
+                            Comparison report
+                            {% else %}
+                            Stock analysis report
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="report-ticker-row">
+                        {% for ticker in result.tickers %}
+                            {% for card in report_metric_cards %}
+                                {% if card.ticker == ticker %}
+                                <span class="report-ticker-pill">
+                                    {% if card.logo_url %}
+                                    <img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+                                    {% endif %}
+                                    {{ ticker }}
+                                </span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="report-meta-list">
+                        <div class="report-meta-item">
+                            <span>Time period</span>
+                            <strong>{{ result.period }}</strong>
+                        </div>
+                        <div class="report-meta-item">
+                            <span>Report type</span>
+                            <strong>
+                                {% if result.is_comparison %}
+                                Comparison
+                                {% else %}
+                                Single ticker
+                                {% endif %}
+                            </strong>
+                        </div>
+                        {% if comparison_result %}
+                        <div class="report-meta-item">
+                            <span>Winner</span>
+                            <strong>{{ comparison_result.winner }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if comparison_result %}
+                    <div class="winner-strip">
+                        <strong>{{ comparison_result.winner }}</strong>
+                        <br>{{ comparison_result.reason }}
+                    </div>
+                    {% endif %}
+                </aside>
+
+                <div class="report-metrics-card">
+                    <div class="report-metric-groups">
+                        {% for card in report_metric_cards %}
+                        <div class="report-metric-group">
+                            <div class="ticker-lockup">
+                                {% if card.logo_url %}
+                                <img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+                                {% endif %}
+                                <h3>{{ card.ticker }}</h3>
+                            </div>
+                            <table class="report-metric-table">
+                                {% for row in card.rows %}
+                                <tr>
+                                    <td>{{ row.label }}</td>
+                                    <td>{{ row.value }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </section>
 
-        {% if chart_entries or comparison_chart_path %}
-        <section class="chart-panel">
+        {% if interactive_chart_entries or interactive_comparison_chart or chart_entries or comparison_chart_path %}
+        <section class="chart-panel" id="interactive-charts">
             <div class="chart-panel-header">
-                <h2>Charts</h2>
-                <span class="muted">Generated from closing price data</span>
+                <h2>Interactive Charts</h2>
+                <span class="muted">Hover to inspect date, price, and relative performance</span>
             </div>
 
-            <div class="chart-grid">
-                {% for chart in chart_entries %}
+            <div class="chart-grid{% if interactive_chart_entries|length == 2 %} chart-grid-double{% endif %}">
+                {% for chart in interactive_chart_entries %}
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <h3>{{ chart.ticker }}</h3>
-                        <span class="chart-label">Price chart</span>
+                        <span class="chart-label">Hover enabled</span>
                     </div>
-                    <img
-                        class="chart-image"
-                        src="/open?path={{ chart.path }}"
-                        alt="{{ chart.ticker }} chart">
+                    <div class="chart-stat-row">
+                        <div class="chart-stat" data-chart-latest="{{ chart.ticker }}">
+                            <span>Latest</span><strong data-live-price="{{ chart.ticker }}">{{ chart.summary.latest_close }}</strong>
+                        </div>
+                        <div class="chart-stat {{ chart.summary.return_class }}">
+                            <span>Return</span>{{ chart.summary.period_return }}
+                        </div>
+                    </div>
+                    <div class="interactive-chart" id="{{ chart.id }}"></div>
+                    <script type="application/json" id="{{ chart.id }}-data">{{ chart.figure_json|safe }}</script>
                 </div>
                 {% endfor %}
 
-                {% if comparison_chart_path %}
+                {% if interactive_comparison_chart %}
                 <div class="chart-card featured">
                     <div class="chart-card-header">
-                        <h3>Normalized Comparison</h3>
-                        <span class="chart-label">Relative performance</span>
+                        <h3>Growth Comparison</h3>
+                        <span class="chart-label">Hover enabled</span>
                     </div>
-                    <img
-                        class="chart-image"
-                        src="/open?path={{ comparison_chart_path }}"
-                        alt="Comparison chart">
+                    <div class="interactive-chart" id="{{ interactive_comparison_chart.id }}"></div>
+                    <script type="application/json" id="{{ interactive_comparison_chart.id }}-data">{{ interactive_comparison_chart.figure_json|safe }}</script>
                 </div>
                 {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if analyst_cards %}
+        <section class="analyst-panel" id="analyst-view">
+            <div class="section-header">
+                <h2>Analyst View</h2>
+                <span class="muted">Third-party recommendation and 12-month target data</span>
+            </div>
+
+            <div class="analyst-grid">
+                {% for card in analyst_cards %}
+                <article class="analyst-card">
+                    <div class="analyst-card-top">
+                        <div>
+                            <h3>{{ card.ticker }}</h3>
+                            <div class="analyst-count">{{ card.analyst_count }}</div>
+                        </div>
+                        <div class="recommendation-pill">{{ card.recommendation }}</div>
+                    </div>
+
+                    <div class="sentiment-meter">
+                        <div class="sentiment-track" style="--sentiment-position: {{ card.sentiment_position }}%;">
+                            <span class="sentiment-marker"></span>
+                        </div>
+                        <div class="sentiment-labels">
+                            <span>Strong Sell</span>
+                            <span>Hold</span>
+                            <span>Strong Buy</span>
+                        </div>
+                    </div>
+
+                    {% if card.available %}
+                    <div class="analyst-stat-grid">
+                        <div class="analyst-stat">
+                            <span>Current price</span>
+                            <strong>{{ card.current_price }}</strong>
+                        </div>
+                        <div class="analyst-stat">
+                            <span>12-month target</span>
+                            <strong>{{ card.target_mean }}</strong>
+                        </div>
+                        <div class="analyst-stat">
+                            <span>Target range</span>
+                            <strong>{{ card.target_low }} - {{ card.target_high }}</strong>
+                        </div>
+                        <div class="analyst-stat">
+                            <span>Implied upside</span>
+                            <strong class="{{ card.upside_class }}">{{ card.upside }}</strong>
+                        </div>
+                    </div>
+                    <p class="analyst-note">Analyst data availability varies by ticker and source.</p>
+                    {% else %}
+                    <p class="analyst-note">Analyst data is unavailable for this ticker right now.</p>
+                    {% endif %}
+                </article>
+                {% endfor %}
             </div>
         </section>
         {% endif %}
@@ -989,39 +1999,85 @@
             <div class="insight-list">
             {% for summary in llm_summaries %}
             <div class="insight-card">
-                <h3>{{ summary.title }}</h3>
-                <div class="insight-text">{{ summary.text }}</div>
+                <div class="insight-card-header">
+                    <h3>{{ summary.title }}</h3>
+                    <span class="insight-pill">AI generated</span>
+                </div>
+
+                {% if summary.summary %}
+                <p class="insight-summary">{{ summary.summary }}</p>
+                {% endif %}
+
+                {% if summary.takeaways %}
+                <ul class="takeaway-list">
+                    {% for takeaway in summary.takeaways %}
+                    <li>{{ takeaway }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                <p class="insight-disclaimer">{{ summary.disclaimer }}</p>
             </div>
             {% endfor %}
             </div>
         </section>
         {% endif %}
 
-        {% if result %}
-        <details class="preview-panel">
-            <summary>
-                <span class="preview-title">
-                    <strong>Dashboard Preview</strong>
-                    <span>Open an embedded view of the generated dashboard when you need it.</span>
-                </span>
-                <span class="preview-toggle">Show preview</span>
-            </summary>
-
-            <div class="preview-frame-wrap">
-                <iframe
-                    class="dashboard-frame"
-                    src="/open?path={{ result.dashboard_path }}">
-                </iframe>
+        {% if news_cards %}
+        <section class="news-panel" id="market-news">
+            <div class="section-header">
+                <h2>Market News</h2>
+                <span class="muted">Recent headlines for analyzed tickers</span>
             </div>
-        </details>
+
+            <div class="news-grid">
+                {% for group in news_cards %}
+                <article class="news-group">
+                    {% if group["items"] %}
+                    <div class="news-list">
+                        {% for item in group["items"] %}
+                        {% if item.link %}
+                        <a class="news-item" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
+                        {% else %}
+                        <div class="news-item">
+                        {% endif %}
+                            <p class="news-item-title">{{ item.title }}</p>
+                            <div class="news-meta">
+                                <span>{{ item.publisher }}</span>
+                                <span>{{ item.published }}</span>
+                            </div>
+                            {% if item.summary %}
+                            <p class="news-summary">{{ item.summary }}</p>
+                            {% endif %}
+                        {% if item.link %}
+                        </a>
+                        {% else %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">No recent news found for this ticker.</div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
         {% endif %}
 
         {% endif %}
 
-        <section class="history-panel">
+        <section class="history-panel" id="recent-runs">
             <div class="history-header">
                 <h2>Recent Runs</h2>
-                <span class="muted">Latest saved analyses</span>
+                <div class="history-actions">
+                    <span class="muted">Latest saved analyses</span>
+                    {% if recent_runs %}
+                    <form method="POST" action="/history/clear" onsubmit="return confirm('Clear all recent run history?');">
+                        <button type="submit" class="history-action-button clear">Clear all</button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
 
             {% if recent_runs %}
@@ -1036,7 +2092,17 @@
                                 Analysis run
                             {% endif %}
                         </p>
-                        <span class="history-time">{{ run.timestamp }}</span>
+                        <div class="history-actions">
+                            <span class="history-time">{{ run.timestamp }}</span>
+                            <form method="POST" action="/">
+                                <input type="hidden" name="user_input" value="{{ run.user_input }}">
+                                <button type="submit" class="history-action-button rerun">Rerun</button>
+                            </form>
+                            <form method="POST" action="/history/delete" onsubmit="return confirm('Delete this recent run?');">
+                                <input type="hidden" name="history_path" value="{{ run.history_path }}">
+                                <button type="submit" class="history-action-button">Delete</button>
+                            </form>
+                        </div>
                     </div>
 
                     <p class="history-request">{{ run.user_input }}</p>
@@ -1064,24 +2130,303 @@
             <span>Generated locally from market data.</span>
             <span>Not financial advice.</span>
         </footer>
+            </main>
+        </div>
     </div>
 
     <script>
+        if ("scrollRestoration" in history) {
+            history.scrollRestoration = "manual";
+        }
+
         const userInput = document.getElementById("userInput");
-        const promptButtons = document.querySelectorAll(".prompt-chip");
         const analysisForm = document.getElementById("analysisForm");
         const runButton = document.getElementById("runButton");
-
-        promptButtons.forEach((button) => {
-            button.addEventListener("click", () => {
-                userInput.value = button.dataset.prompt;
-                userInput.focus();
-            });
-        });
+        const chartConfig = {
+            responsive: true,
+            displaylogo: false,
+            displayModeBar: false,
+            scrollZoom: false,
+            modeBarButtonsToRemove: [
+                "pan2d",
+                "zoom2d",
+                "select2d",
+                "lasso2d",
+                "toImage",
+                "toggleSpikelines",
+                "zoomIn2d",
+                "zoomOut2d"
+            ]
+        };
 
         analysisForm.addEventListener("submit", () => {
             runButton.disabled = true;
             runButton.textContent = "Running analysis...";
+        });
+
+        const metricsOverview = document.getElementById("metrics-overview");
+        if (metricsOverview?.dataset.autoScroll === "true") {
+            window.requestAnimationFrame(() => {
+                metricsOverview.scrollIntoView({
+                    block: "start"
+                });
+            });
+        }
+
+        const livePriceNodes = Array.from(document.querySelectorAll("[data-live-price]"));
+        const liveTickers = [...new Set(livePriceNodes.map((node) => node.dataset.livePrice).filter(Boolean))];
+        const liveStatusNodes = Array.from(document.querySelectorAll("[data-live-status]"));
+        const liveChangeNodes = Array.from(document.querySelectorAll("[data-live-change]"));
+        const chartLatestNodes = Array.from(document.querySelectorAll("[data-chart-latest]"));
+
+        function setTickerStatus(ticker, message) {
+            liveStatusNodes
+                .filter((node) => node.dataset.liveStatus === ticker)
+                .forEach((node) => {
+                    node.textContent = message;
+                });
+        }
+
+        function updateLiveQuote(ticker, quote) {
+            livePriceNodes
+                .filter((node) => node.dataset.livePrice === ticker)
+                .forEach((node) => {
+                    node.textContent = quote.price_text || "N/A";
+                });
+
+            liveChangeNodes
+                .filter((node) => node.dataset.liveChange === ticker)
+                .forEach((node) => {
+                    node.textContent = quote.change_percent_text && quote.change_percent_text !== "N/A"
+                        ? `${quote.change_text} (${quote.change_percent_text})`
+                        : "";
+                    node.classList.remove("positive", "negative");
+                    if (quote.direction === "positive" || quote.direction === "negative") {
+                        node.classList.add(quote.direction);
+                    }
+                });
+
+            chartLatestNodes
+                .filter((node) => node.dataset.chartLatest === ticker)
+                .forEach((node) => {
+                    node.classList.remove("positive", "negative");
+                    if (quote.direction === "positive" || quote.direction === "negative") {
+                        node.classList.add(quote.direction);
+                    }
+                });
+
+            const updatedAt = quote.updated_at ? new Date(quote.updated_at) : new Date();
+            setTickerStatus(ticker, `Updated ${updatedAt.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit"
+            })}`);
+        }
+
+        async function refreshLiveQuotes() {
+            if (!liveTickers.length) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/quotes?tickers=${encodeURIComponent(liveTickers.join(","))}`);
+                if (!response.ok) {
+                    throw new Error("Quote request failed");
+                }
+
+                const payload = await response.json();
+                liveTickers.forEach((ticker) => {
+                    const quote = payload.quotes?.[ticker];
+                    if (quote) {
+                        updateLiveQuote(ticker, quote);
+                    } else {
+                        setTickerStatus(ticker, "Live quote unavailable");
+                    }
+                });
+            } catch (error) {
+                liveTickers.forEach((ticker) => setTickerStatus(ticker, "Live quote unavailable"));
+            }
+        }
+
+        if (liveTickers.length) {
+            refreshLiveQuotes();
+            window.setInterval(refreshLiveQuotes, 30000);
+        }
+
+        const quickNavLinks = Array.from(document.querySelectorAll(".quick-nav a[href^='#']"));
+        const navTargets = quickNavLinks
+            .map((link) => document.getElementById(link.getAttribute("href").slice(1)))
+            .filter(Boolean);
+
+        function setActiveNavLink(sectionId) {
+            quickNavLinks.forEach((link) => {
+                link.classList.toggle("active", link.getAttribute("href") === `#${sectionId}`);
+            });
+        }
+
+        if (quickNavLinks.length && navTargets.length) {
+            setActiveNavLink(navTargets[0].id);
+
+            const navObserver = new IntersectionObserver((entries) => {
+                const visibleEntries = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+                if (visibleEntries.length) {
+                    setActiveNavLink(visibleEntries[0].target.id);
+                }
+            }, {
+                rootMargin: "-18% 0px -58% 0px",
+                threshold: [0.12, 0.35, 0.6]
+            });
+
+            navTargets.forEach((target) => navObserver.observe(target));
+        }
+
+        function attachHoverMarkers(chartNode, traces) {
+            const accentCyan = getComputedStyle(document.documentElement)
+                .getPropertyValue("--accent-cyan")
+                .trim() || "#38bdf8";
+            const tooltip = document.createElement("div");
+            tooltip.className = "chart-hover-tooltip";
+            chartNode.appendChild(tooltip);
+            const dot = document.createElement("div");
+            dot.className = "chart-hover-dot";
+            chartNode.appendChild(dot);
+            const guideTop = document.createElement("div");
+            const guideBottom = document.createElement("div");
+            guideTop.className = "chart-hover-guide";
+            guideBottom.className = "chart-hover-guide";
+            chartNode.appendChild(guideTop);
+            chartNode.appendChild(guideBottom);
+
+            const formatHoverDate = (value) => new Date(value).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+            });
+            const formatNumber = (value, digits = 2) => Number(value).toLocaleString("en-US", {
+                minimumFractionDigits: digits,
+                maximumFractionDigits: digits
+            });
+            const formatCurrency = (value) => `$${formatNumber(value)}`;
+
+            const hideHover = () => {
+                tooltip.style.display = "none";
+                dot.style.display = "none";
+                guideTop.style.display = "none";
+                guideBottom.style.display = "none";
+            };
+
+            const positionTooltip = (hoverPoint, coordinates) => {
+                if (!coordinates) {
+                    return;
+                }
+
+                const offset = 18;
+                const tooltipWidth = tooltip.offsetWidth || 132;
+                const tooltipHeight = tooltip.offsetHeight || 78;
+
+                let left = coordinates.pointX + offset;
+                if (left + tooltipWidth > chartNode.clientWidth - 8) {
+                    left = coordinates.pointX - tooltipWidth - offset;
+                }
+
+                const top = Math.min(
+                    Math.max(coordinates.pointY - tooltipHeight / 2, 8),
+                    chartNode.clientHeight - tooltipHeight - 8
+                );
+
+                tooltip.style.left = `${Math.max(left, 8)}px`;
+                tooltip.style.top = `${top}px`;
+            };
+
+            const positionDot = (hoverPoint, coordinates) => {
+                if (!coordinates) {
+                    return;
+                }
+
+                dot.style.left = `${coordinates.pointX}px`;
+                dot.style.top = `${coordinates.pointY}px`;
+                dot.style.background = hoverPoint.color;
+                dot.style.display = "block";
+            };
+
+            const positionGuide = (yAxis, coordinates) => {
+                if (!yAxis || !coordinates) {
+                    return;
+                }
+
+                const yStart = yAxis._offset;
+                const yEnd = yAxis._offset + yAxis._length;
+                const gap = 11;
+                const topHeight = Math.max(coordinates.pointY - gap - yStart, 0);
+                const bottomTop = Math.min(coordinates.pointY + gap, yEnd);
+                const bottomHeight = Math.max(yEnd - bottomTop, 0);
+                const left = Math.round(coordinates.pointX);
+
+                guideTop.style.left = `${left}px`;
+                guideTop.style.top = `${yStart}px`;
+                guideTop.style.height = `${topHeight}px`;
+                guideTop.style.display = topHeight > 0 ? "block" : "none";
+
+                guideBottom.style.left = `${left}px`;
+                guideBottom.style.top = `${bottomTop}px`;
+                guideBottom.style.height = `${bottomHeight}px`;
+                guideBottom.style.display = bottomHeight > 0 ? "block" : "none";
+            };
+
+            chartNode.on("plotly_hover", (eventData) => {
+                const point = eventData.points.find((candidate) => candidate.curveNumber < traces.length);
+                if (!point || !point.xaxis || !point.yaxis) {
+                    hideHover();
+                    return;
+                }
+
+                const xValue = point.xaxis.type === "date" ? new Date(point.x).getTime() : point.x;
+                const coordinates = {
+                    pointX: point.xaxis._offset + point.xaxis.l2p(xValue),
+                    pointY: point.yaxis._offset + point.yaxis.l2p(point.y)
+                };
+                const hoverPoint = {
+                    name: point.data?.name || "",
+                    x: point.x,
+                    y: point.y,
+                    price: point.customdata ?? point.data?.customdata?.[point.pointIndex ?? point.pointNumber],
+                    color: point.fullData?.line?.color || accentCyan
+                };
+                const isComparison = chartNode.id.includes("comparison");
+                const valueLabel = isComparison
+                    ? `Growth: ${formatNumber(hoverPoint.y)}%`
+                    : `Close: ${formatCurrency(hoverPoint.y)}`;
+                const priceLabel = isComparison && hoverPoint.price !== undefined
+                    ? `<div>Close: ${formatCurrency(hoverPoint.price)}</div>`
+                    : "";
+
+                tooltip.innerHTML = `
+                    <strong>${hoverPoint.name}</strong>
+                    <div>Date: ${formatHoverDate(hoverPoint.x)}</div>
+                    <div>${valueLabel}</div>
+                    ${priceLabel}
+                `;
+                tooltip.style.display = "block";
+                positionTooltip(hoverPoint, coordinates);
+                positionDot(hoverPoint, coordinates);
+                positionGuide(point.yaxis, coordinates);
+            });
+
+            chartNode.on("plotly_unhover", hideHover);
+        }
+
+        document.querySelectorAll(".interactive-chart").forEach((chartNode) => {
+            const dataNode = document.getElementById(`${chartNode.id}-data`);
+            if (!dataNode || !window.Plotly) {
+                return;
+            }
+
+            const figure = JSON.parse(dataNode.textContent);
+            Plotly.newPlot(chartNode, figure.data, figure.layout, chartConfig).then(() => {
+                attachHoverMarkers(chartNode, figure.data);
+            });
         });
     </script>
 </body>

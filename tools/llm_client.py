@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional, Dict, Any
 
 from openai import OpenAI
 
@@ -43,17 +42,15 @@ def generate_llm_summary(payload, use_llm: bool = True):
             f"DATA:\n{payload}"
         )
         # Make the API request
-        resp = client.responses.create(
-            model="gpt-4.1-mini",
-            input=[
-                {"role": "system", "content": system_msg},
+        resp = client.chat.completions.create(
+            model = "gpt-4o-mini", 
+            messages = [
+                {"role": "system", "content": system_msg}, 
                 {"role": "user", "content": user_msg},
-            ],
-            max_output_tokens=260,
-            temperature=0.4,
-        )
+            ], 
+            max_tokens = 300)
         # Get the generated text
-        text = (resp.output_text or "").strip()
+        text = (resp.choices[0].message.content or "").strip()
         # Return text only if something meaningful was generated
         return text if text else None
 

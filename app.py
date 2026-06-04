@@ -1,7 +1,16 @@
-from flask import Flask, render_template, request, send_file, abort
+from flask import Flask, render_template, request, send_file, abort, redirect, url_for, jsonify
 from pathlib import Path
+from datetime import datetime
+import re
+import yfinance as yf
 from main import run_analysis_from_request
-from history import load_recent_history
+from history import clear_history, delete_history_file, load_recent_history
+from tools.interactive_charts import (
+    build_comparison_chart_json,
+    build_price_chart_json,
+)
+from tools.analyst import logo_url_for_ticker
+from tools.crypto import is_crypto_symbol, normalize_crypto_symbol
 
 app = Flask(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -9,6 +18,26 @@ ALLOWED_FILE_DIRS = [
     PROJECT_ROOT / "output",
     PROJECT_ROOT / "reports" / "generated",
 ]
+INTERVAL_OPTIONS = [
+    {"value": "1mo", "label": "1M", "phrase": "1 month"},
+    {"value": "3mo", "label": "3M", "phrase": "3 months"},
+    {"value": "6mo", "label": "6M", "phrase": "6 months"},
+    {"value": "1y", "label": "1Y", "phrase": "1 year"},
+    {"value": "2y", "label": "2Y", "phrase": "2 years"},
+    {"value": "5y", "label": "5Y", "phrase": "5 years"},
+]
+INTERVAL_PHRASES = {
+    option["value"]: option["phrase"]
+    for option in INTERVAL_OPTIONS
+}
+SUMMARY_OPTIONS = [
+    {"value": "with_summary", "label": "With summary", "phrase": "with summary"},
+    {"value": "no_summary", "label": "No summary", "phrase": "no summary"},
+]
+SUMMARY_PHRASES = {
+    option["value"]: option["phrase"]
+    for option in SUMMARY_OPTIONS
+}
 
 def format_percent(value):
     if value is None:
@@ -25,6 +54,345 @@ def format_number(value):
         return f"{float(value):.2f}"
     except (TypeError, ValueError):
         return "N/A"
+
+def as_float(value):
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+def read_float_field(source, *field_names):
+    if not source:
+        return None
+
+    for field_name in field_names:
+        try:
+            value = source.get(field_name)
+        except AttributeError:
+            value = getattr(source, field_name, None)
+        except Exception:
+            continue
+
+        number = as_float(value)
+        if number is not None:
+            return number
+
+    return None
+
+def build_request_with_controls(user_input, interval, summary_mode):
+    request_text = user_input.strip()
+
+    if summary_mode in SUMMARY_PHRASES:
+        request_text = re.sub(
+            r"\b(?:with|no)\s+summary\b",
+            "",
+            request_text,
+            flags=re.IGNORECASE,
+        )
+        request_text = " ".join(request_text.split())
+
+    interval_phrase = INTERVAL_PHRASES.get(interval)
+    if interval_phrase:
+        request_text = f"{request_text} for {interval_phrase}"
+
+    summary_phrase = SUMMARY_PHRASES.get(summary_mode)
+    if summary_phrase:
+        request_text = f"{request_text} {summary_phrase}"
+
+    return request_text
+
+def build_chart_summary(price_data):
+    if price_data is None or price_data.empty or "Close" not in price_data.columns:
+        return {"latest_close": "N/A", "period_return": "N/A", "return_class": "neutral"}
+
+    close = price_data["Close"]
+    start_price = float(close.iloc[0])
+    latest_close = float(close.iloc[-1])
+
+    if start_price == 0:
+        period_return = None
+    else:
+        period_return = (latest_close / start_price) - 1
+
+    return_class = "neutral"
+    if period_return is not None:
+        if period_return > 0:
+            return_class = "positive"
+        elif period_return < 0:
+            return_class = "negative"
+
+    return {
+        "latest_close": f"${latest_close:,.2f}",
+        "period_return": format_percent(period_return),
+        "return_class": return_class,
+    }
+
+def format_currency(value):
+    if value is None:
+        return "N/A"
+    try:
+        return f"${float(value):,.2f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+def format_signed_currency(value):
+    if value is None:
+        return "N/A"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+
+    sign = "+" if number >= 0 else "-"
+    return f"{sign}${abs(number):,.2f}"
+
+def format_large_currency(value):
+    if value is None:
+        return "N/A"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+
+    magnitude_labels = [
+        (1_000_000_000_000, "T"),
+        (1_000_000_000, "B"),
+        (1_000_000, "M"),
+    ]
+    for magnitude, label in magnitude_labels:
+        if abs(number) >= magnitude:
+            return f"${number / magnitude:.2f}{label}"
+
+    return f"${number:,.0f}"
+
+def format_date_label(value):
+    if not value:
+        return "N/A"
+    try:
+        return datetime.fromisoformat(str(value)).strftime("%b %d, %Y")
+    except ValueError:
+        return str(value)
+
+def format_signed_percent(value):
+    if value is None:
+        return "N/A"
+    try:
+        return f"{float(value):+.2%}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+def build_analyst_card(analyst_view):
+    if not analyst_view:
+        return None
+
+    upside = analyst_view.get("upside")
+    upside_class = "neutral"
+    if upside is not None:
+        if upside > 0:
+            upside_class = "positive"
+        elif upside < 0:
+            upside_class = "negative"
+
+    analyst_count = analyst_view.get("analyst_count")
+    try:
+        analyst_count_text = f"{int(analyst_count)} analysts" if analyst_count is not None else "N/A"
+    except (TypeError, ValueError):
+        analyst_count_text = "N/A"
+
+    recommendation = analyst_view.get("recommendation", "Unavailable")
+    sentiment_positions = {
+        "Strong Sell": 0,
+        "Sell": 25,
+        "Hold": 50,
+        "Buy": 75,
+        "Strong Buy": 100,
+    }
+    sentiment_position = sentiment_positions.get(recommendation, 50)
+
+    return {
+        "ticker": analyst_view.get("ticker", ""),
+        "available": analyst_view.get("available", False),
+        "recommendation": recommendation,
+        "sentiment_position": sentiment_position,
+        "analyst_count": analyst_count_text,
+        "target_mean": format_currency(analyst_view.get("target_mean")),
+        "target_low": format_currency(analyst_view.get("target_low")),
+        "target_high": format_currency(analyst_view.get("target_high")),
+        "current_price": format_currency(analyst_view.get("current_price")),
+        "upside": format_percent(upside),
+        "upside_class": upside_class,
+        "error": analyst_view.get("error"),
+    }
+
+def build_earnings_card(earnings, logo_url=None):
+    if not earnings:
+        return None
+
+    eps_result = earnings.get("eps_result")
+    revenue_result = earnings.get("revenue_result")
+    eps_surprise = earnings.get("eps_surprise")
+    revenue_surprise = earnings.get("revenue_surprise")
+    last_report_date = format_date_label(earnings.get("last_report_date"))
+    last_report_label = (
+        f"{last_report_date} (period end)"
+        if earnings.get("last_report_date_is_period_end") and last_report_date != "N/A"
+        else last_report_date
+    )
+
+    return {
+        "ticker": earnings.get("ticker", ""),
+        "logo_url": logo_url,
+        "available": earnings.get("available", False),
+        "last_report_date": last_report_date,
+        "last_report_label": last_report_label,
+        "next_call_date": format_date_label(earnings.get("next_call_date")),
+        "next_call_date_is_estimate": earnings.get("next_call_date_is_estimate", False),
+        "next_call_label": (
+            f"{format_date_label(earnings.get('next_call_date'))} (estimated)"
+            if earnings.get("next_call_date") and earnings.get("next_call_date_is_estimate", False)
+            else format_date_label(earnings.get("next_call_date"))
+        ),
+        "fiscal_period": earnings.get("fiscal_period") or "N/A",
+        "eps_actual": format_currency(earnings.get("eps_actual")),
+        "eps_estimate": format_currency(earnings.get("eps_estimate")),
+        "eps_surprise": format_signed_percent(eps_surprise),
+        "eps_has_surprise": eps_surprise is not None and eps_result is not None,
+        "eps_result": eps_result or "N/A",
+        "eps_result_class": eps_result or "neutral",
+        "revenue_actual": format_large_currency(earnings.get("revenue_actual")),
+        "revenue_estimate": format_large_currency(earnings.get("revenue_estimate")),
+        "revenue_surprise": format_signed_percent(revenue_surprise),
+        "revenue_has_surprise": revenue_surprise is not None and revenue_result is not None,
+        "revenue_result": revenue_result or "N/A",
+        "revenue_result_class": revenue_result or "neutral",
+        "error": earnings.get("error"),
+    }
+
+def build_fundamentals_card(fundamentals, logo_url=None):
+    if not fundamentals:
+        return None
+
+    return {
+        "ticker": fundamentals.get("ticker", ""),
+        "logo_url": logo_url,
+        "available": fundamentals.get("available", False),
+        "company_name": fundamentals.get("company_name") or fundamentals.get("ticker", ""),
+        "sector": fundamentals.get("sector") or "N/A",
+        "industry": fundamentals.get("industry") or "N/A",
+        "rows": [
+            {"label": "Market cap", "value": format_large_currency(fundamentals.get("market_cap"))},
+            {"label": "P/E ratio", "value": format_number(fundamentals.get("pe_ratio"))},
+            {"label": "Revenue growth", "value": format_percent(fundamentals.get("revenue_growth"))},
+            {"label": "EPS", "value": format_currency(fundamentals.get("eps"))},
+            {"label": "Dividend yield", "value": format_percent(fundamentals.get("dividend_yield"))},
+        ],
+        "error": fundamentals.get("error"),
+    }
+
+def build_report_metric_card(ticker, metrics, logo_url=None):
+    metrics = metrics or {}
+    return {
+        "ticker": ticker,
+        "logo_url": logo_url,
+        "rows": [
+            {"label": "Total return", "value": format_percent(metrics.get("total_return"))},
+            {"label": "Volatility", "value": format_percent(metrics.get("volatility"))},
+            {"label": "Sharpe ratio", "value": format_number(metrics.get("sharpe_ratio"))},
+            {"label": "Annualized volatility", "value": format_percent(metrics.get("annualized_volatility"))},
+            {"label": "Annualized Sharpe", "value": format_number(metrics.get("annualized_sharpe_ratio"))},
+            {"label": "CAGR", "value": format_percent(metrics.get("cagr"))},
+            {"label": "Max drawdown", "value": format_percent(metrics.get("max_drawdown"))},
+            {"label": "20-day moving average", "value": format_number(metrics.get("ma_20"))},
+            {"label": "50-day moving average", "value": format_number(metrics.get("ma_50"))},
+        ],
+    }
+
+def build_llm_summary_card(title, text):
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+    takeaways = []
+    narrative_lines = []
+    disclaimer = None
+    in_takeaways = False
+
+    for line in lines:
+        normalized = line.strip("*").strip()
+
+        if "key takeaway" in normalized.lower():
+            in_takeaways = True
+            continue
+
+        if normalized.lower().startswith("not financial advice"):
+            disclaimer = normalized
+            continue
+
+        if line.startswith("-"):
+            takeaways.append(line.lstrip("-").strip())
+            in_takeaways = True
+            continue
+
+        if in_takeaways:
+            takeaways.append(normalized)
+        else:
+            narrative_lines.append(normalized)
+
+    return {
+        "title": title,
+        "summary": " ".join(narrative_lines).strip(),
+        "takeaways": takeaways,
+        "disclaimer": disclaimer or "Not financial advice.",
+    }
+
+def fetch_live_quote(ticker):
+    symbol = ticker.strip().upper()
+    if not symbol:
+        raise ValueError("Ticker is required.")
+
+    yahoo_symbol = normalize_crypto_symbol(symbol)
+    stock = yf.Ticker(yahoo_symbol)
+    fast_info = {}
+    try:
+        fast_info = stock.fast_info or {}
+    except Exception:
+        fast_info = {}
+
+    price = (
+        read_float_field(fast_info, "last_price", "lastPrice", "regular_market_price")
+    )
+    previous_close = (
+        read_float_field(fast_info, "previous_close", "previousClose", "regular_market_previous_close")
+    )
+
+    if price is None or previous_close is None:
+        info = stock.get_info() or {}
+        price = price or read_float_field(info, "currentPrice", "regularMarketPrice")
+        previous_close = (
+            previous_close
+            or read_float_field(info, "previousClose", "regularMarketPreviousClose")
+        )
+
+    if price is None:
+        raise ValueError(f"No live quote found for {symbol}.")
+
+    change = None
+    change_percent = None
+    if previous_close not in (None, 0):
+        change = price - previous_close
+        change_percent = change / previous_close
+
+    return {
+        "ticker": symbol,
+        "price": price,
+        "price_text": format_currency(price),
+        "change": change,
+        "change_text": format_signed_currency(change),
+        "change_percent": change_percent,
+        "change_percent_text": format_signed_percent(change_percent),
+        "direction": "positive" if change and change > 0 else "negative" if change and change < 0 else "neutral",
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+        "source": "Yahoo Finance",
+    }
 
 @app.route("/open")
 def open_file():
@@ -49,25 +417,91 @@ def open_file():
     return send_file(resolved_path)
 
 
+@app.route("/history/delete", methods=["POST"])
+def delete_history_run():
+    history_path = request.form.get("history_path", "").strip()
+
+    if not history_path:
+        abort(400)
+
+    try:
+        delete_history_file(history_path)
+    except ValueError:
+        abort(403)
+
+    return redirect(url_for("index"))
+
+
+@app.route("/history/clear", methods=["POST"])
+def clear_history_runs():
+    clear_history()
+    return redirect(url_for("index"))
+
+@app.route("/api/quotes")
+def live_quotes():
+    raw_tickers = request.args.get("tickers", "")
+    tickers = [
+        ticker.strip().upper()
+        for ticker in raw_tickers.split(",")
+        if ticker.strip()
+    ]
+    tickers = list(dict.fromkeys(tickers))[:2]
+
+    if not tickers:
+        return jsonify({"quotes": {}, "errors": {"request": "No tickers provided."}}), 400
+
+    quotes = {}
+    errors = {}
+    for ticker in tickers:
+        try:
+            quotes[ticker] = fetch_live_quote(ticker)
+        except Exception as exc:
+            errors[ticker] = str(exc)
+
+    return jsonify({
+        "quotes": quotes,
+        "errors": errors,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    })
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = None
     error = None
     user_input = ""
+    selected_interval = "1y"
+    selected_summary = "with_summary"
     chart_entries = []
     comparison_chart_path = None
+    interactive_chart_entries = []
+    interactive_comparison_chart = None
     llm_summaries = []
     metric_cards = []
+    report_metric_cards = []
+    fundamentals_cards = []
+    earnings_cards = []
+    analyst_cards = []
+    news_cards = []
     comparison_result = None
 
     if request.method == "POST":
         user_input = request.form.get("user_input", "").strip()
+        requested_interval = request.form.get("interval", "").strip()
+        requested_summary = request.form.get("summary_mode", "").strip()
+        selected_interval = requested_interval if requested_interval in INTERVAL_PHRASES else "1y"
+        selected_summary = requested_summary if requested_summary in SUMMARY_PHRASES else "with_summary"
 
         if not user_input:
             error = "Please enter a request."
         else:
             try:
-                result = run_analysis_from_request(user_input)
+                analysis_request = build_request_with_controls(
+                    user_input,
+                    requested_interval,
+                    requested_summary,
+                )
+                result = run_analysis_from_request(analysis_request)
 
                 memory = result.get("memory")
                 tickers = result.get("tickers", [])
@@ -75,6 +509,7 @@ def index():
                 if memory is not None:
                     # Collect per-ticker chart paths
                     for ticker in tickers:
+                        is_crypto = is_crypto_symbol(ticker)
                         chart_path = memory.get(f"{ticker}_chart_path")
                         if chart_path:
                             chart_entries.append({
@@ -82,33 +517,81 @@ def index():
                                 "path": chart_path,
                             })
 
+                        price_data = memory.get(f"{ticker}_data")
+                        period = result.get("period", "")
+                        if price_data is not None:
+                            interactive_chart_entries.append({
+                                "id": f"interactive-chart-{ticker}",
+                                "ticker": ticker,
+                                "figure_json": build_price_chart_json(price_data, ticker, period),
+                                "summary": build_chart_summary(price_data),
+                            })
+
                         metrics = memory.get(f"{ticker}_metrics", {}) or {}
+                        analyst_view = memory.get(f"{ticker}_analyst_view") or {}
+                        logo_url = analyst_view.get("logo_url") or logo_url_for_ticker(ticker)
                         metric_cards.append({
                             "ticker": ticker,
+                            "logo_url": logo_url,
                             "total_return": format_percent(metrics.get("total_return")),
                             "volatility": format_percent(metrics.get("volatility")),
                             "sharpe_ratio": format_number(metrics.get("sharpe_ratio")),
+                        })
+                        report_metric_cards.append(build_report_metric_card(ticker, metrics, logo_url))
+
+                        if not is_crypto:
+                            analyst_card = build_analyst_card(analyst_view)
+                            if analyst_card:
+                                analyst_cards.append(analyst_card)
+
+                            fundamentals_card = build_fundamentals_card(
+                                memory.get(f"{ticker}_fundamentals") or {},
+                                logo_url,
+                            )
+                            if fundamentals_card:
+                                fundamentals_cards.append(fundamentals_card)
+
+                            earnings_card = build_earnings_card(
+                                memory.get(f"{ticker}_earnings") or {},
+                                logo_url,
+                            )
+                            if earnings_card:
+                                earnings_cards.append(earnings_card)
+
+                        ticker_news = memory.get(f"{ticker}_news", []) or []
+                        news_cards.append({
+                            "ticker": ticker,
+                            "logo_url": logo_url,
+                            "items": ticker_news[:3],
                         })
 
                     # Collect comparison chart if it exists
                     comparison_chart_path = memory.get("comparison_chart_path")
                     comparison_result = memory.get("comparison")
+                    if len(tickers) == 2:
+                        price_data_a = memory.get(f"{tickers[0]}_data")
+                        price_data_b = memory.get(f"{tickers[1]}_data")
+                        if price_data_a is not None and price_data_b is not None:
+                            interactive_comparison_chart = {
+                                "id": "interactive-comparison-chart",
+                                "figure_json": build_comparison_chart_json(
+                                    price_data_a,
+                                    price_data_b,
+                                    tickers[0],
+                                    tickers[1],
+                                    result.get("period", ""),
+                                ),
+                            }
 
                     # Collect optional LLM summaries
                     for ticker in tickers:
                         llm_text = memory.get(f"{ticker}_llm_summary")
                         if llm_text:
-                            llm_summaries.append({
-                                "title": f"{ticker} LLM Summary",
-                                "text": llm_text,
-                            })
+                            llm_summaries.append(build_llm_summary_card(f"{ticker} AI Summary", llm_text))
 
                     comparison_llm = memory.get("comparison_llm_summary")
                     if comparison_llm:
-                        llm_summaries.append({
-                            "title": "Comparison LLM Summary",
-                            "text": comparison_llm,
-                        })
+                        llm_summaries.append(build_llm_summary_card("Comparison AI Summary", comparison_llm))
 
             except Exception as e:
                 error = str(e)
@@ -120,11 +603,22 @@ def index():
         result=result,
         error=error,
         user_input=user_input,
+        selected_interval=selected_interval,
+        selected_summary=selected_summary,
+        interval_options=INTERVAL_OPTIONS,
+        summary_options=SUMMARY_OPTIONS,
         recent_runs=recent_runs,
         chart_entries=chart_entries,
         comparison_chart_path=comparison_chart_path,
+        interactive_chart_entries=interactive_chart_entries,
+        interactive_comparison_chart=interactive_comparison_chart,
         llm_summaries=llm_summaries,
         metric_cards=metric_cards,
+        report_metric_cards=report_metric_cards,
+        fundamentals_cards=fundamentals_cards,
+        earnings_cards=earnings_cards,
+        analyst_cards=analyst_cards,
+        news_cards=news_cards,
         comparison_result=comparison_result,
     )
 

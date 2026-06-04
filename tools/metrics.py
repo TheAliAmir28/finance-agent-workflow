@@ -1,3 +1,5 @@
+import math
+
 # Compute daily percentage returns from closing price data.
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column
 def compute_daily_returns(price_data):
@@ -37,18 +39,99 @@ def compute_sharpe_ratio(daily_returns):
     sharpe_ratio = mean_return / volatility
     return sharpe_ratio
 
+# Makes Sharpe ratio more realistic by annualizing it.
+# daily_returns (pandas.Series): Daily returns
+def compute_annualized_volatility(daily_returns):
+    daily_volatility = daily_returns.std()
+    annualized_volatility = daily_volatility * math.sqrt(252)
+    return annualized_volatility
+
+
+# Takes daily volatility and scales it up to a yearly estimate.
+# daily_returns (pandas.Series): Daily returns
+def compute_annualized_sharpe_ratio(daily_returns, risk_free_rate=0.0):
+    mean_daily_return = daily_returns.mean()
+    daily_volatility = daily_returns.std()
+
+    if daily_volatility == 0:
+        return None
+
+    annualized_sharpe = ((mean_daily_return - risk_free_rate / 252) / daily_volatility) * math.sqrt(252)
+    return annualized_sharpe
+
+
+# Measures the yearly compound growth rate over the period.
+# price_data (pandas.DataFrame): DataFrame with a 'Close' column and datetime index
+def compute_cagr(price_data):
+    start_price = price_data["Close"].iloc[0]
+    end_price = price_data["Close"].iloc[-1]
+
+    num_days = (price_data.index[-1] - price_data.index[0]).days
+    if num_days <= 0:
+        return None
+
+    num_years = num_days / 365.25
+    if num_years <= 0:
+        return None
+
+    cagr = (end_price / start_price) ** (1 / num_years) - 1
+    return cagr
+
+
+# Finds the worst drop from a previous peak.
+# price_data (pandas.DataFrame): DataFrame with a 'Close' column
+def compute_max_drawdown(price_data):
+    running_max = price_data["Close"].cummax()
+    drawdowns = (price_data["Close"] - running_max) / running_max
+    max_drawdown = drawdowns.min()
+    return max_drawdown
+
+
+# Returns the latest 20-day and 50-day moving averages
+# price_data (pandas.DataFrame): DataFrame with a 'Close' column
+def compute_moving_averages(price_data):
+    ma_20_series = price_data["Close"].rolling(window=20).mean()
+    ma_50_series = price_data["Close"].rolling(window=50).mean()
+
+    ma_20 = ma_20_series.iloc[-1] if len(ma_20_series) > 0 else None
+    ma_50 = ma_50_series.iloc[-1] if len(ma_50_series) > 0 else None
+
+    # Convert NaN to None for cleaner downstream handling
+    if ma_20 != ma_20:
+        ma_20 = None
+    if ma_50 != ma_50:
+        ma_50 = None
+
+    return {"ma_20": ma_20, "ma_50": ma_50}
+
 # Compute all relevant metrics for a stock.
 # price_data (pandas.DataFrame): DataFrame with a 'Close' column
 def compute_all_metrics(price_data):
-
     daily_returns = compute_daily_returns(price_data)
+
     total_return = compute_total_return(price_data)
     volatility = compute_volatility(daily_returns)
-    sharpe_ratio = compute_sharpe_ratio(daily_returns)  
+    sharpe_ratio = compute_sharpe_ratio(daily_returns)
 
-    metrics = {"total_return" : total_return, "volatility" : volatility, "sharpe_ratio" : sharpe_ratio}
+    annualized_volatility = compute_annualized_volatility(daily_returns)
+    annualized_sharpe_ratio = compute_annualized_sharpe_ratio(daily_returns)
+    cagr = compute_cagr(price_data)
+    max_drawdown = compute_max_drawdown(price_data)
+    moving_averages = compute_moving_averages(price_data)
 
-    return metrics  
+    metrics = {
+        "total_return": total_return,
+        "volatility": volatility,
+        "sharpe_ratio": sharpe_ratio,
+        "annualized_volatility": annualized_volatility,
+        "annualized_sharpe_ratio": annualized_sharpe_ratio,
+        "cagr": cagr,
+        "max_drawdown": max_drawdown,
+        "ma_20": moving_averages["ma_20"],
+        "ma_50": moving_averages["ma_50"],
+    }
+
+    return metrics 
 
 # Compare metrics for two stocks and determine a winner.
 def compare_metrics(metrics_a, metrics_b, ticker_a, ticker_b):

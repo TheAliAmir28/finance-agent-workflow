@@ -67,3 +67,28 @@ def load_recent_history(limit=5):
         
     # Most the most recent history entries, newest first in the form of a list
     return recent_runs
+
+def delete_history_file(history_path):
+    history_file = Path(history_path).resolve()
+    history_dir = HISTORY_DIR.resolve()
+
+    if history_dir not in history_file.parents:
+        raise ValueError("History file is outside the history directory.")
+
+    if not history_file.name.startswith("run_") or history_file.suffix != ".json":
+        raise ValueError("Only saved run history files can be deleted.")
+
+    if history_file.exists():
+        history_file.unlink()
+
+def clear_history():
+    if not HISTORY_DIR.exists():
+        return 0
+
+    deleted_count = 0
+    for history_file in HISTORY_DIR.glob("run_*.json"):
+        if history_file.is_file():
+            history_file.unlink()
+            deleted_count += 1
+
+    return deleted_count
