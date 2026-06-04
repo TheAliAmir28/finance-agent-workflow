@@ -14,7 +14,7 @@ Analyze tickers, compare performance, inspect live prices, review fundamentals, 
 
 </div>
 
-![Finance Agent Workflow dashboard](assets/dashboard-demo.png)
+![Finance Agent Workflow dashboard overview](assets/readme/dashboard-overview.png)
 
 ---
 
@@ -22,6 +22,7 @@ Analyze tickers, compare performance, inspect live prices, review fundamentals, 
 
 - [Overview](#overview)
 - [Highlights](#highlights)
+- [Screenshots](#screenshots)
 - [Demo Prompts](#demo-prompts)
 - [How It Works](#how-it-works)
 - [Tech Stack](#tech-stack)
@@ -60,6 +61,46 @@ It is designed to feel like a compact research terminal: fast to run locally, ea
 | Recent runs | Saves previous analyses and lets you rerun them directly from the UI. |
 | UI controls | Provides dropdowns for time interval and summary mode, so users are not forced to rely only on natural language. |
 | Local network access | Can be opened from a phone on the same Wi-Fi network for quick mobile testing. |
+
+---
+
+## Screenshots
+
+### Dashboard Overview
+
+The main workspace combines plain-English analysis, interval controls, summary controls, quick navigation, live quote cards, and performance metrics in one local dashboard.
+
+![Dashboard overview](assets/readme/dashboard-overview.png)
+
+### Company Fundamentals And Earnings
+
+The research panels surface valuation, business context, earnings dates, EPS, revenue, estimates, and ticker-specific fundamentals without leaving the workflow.
+
+![Company fundamentals and earnings](assets/readme/company-fundamentals-earnings.png)
+
+### Generated Report
+
+Each run produces a clean report section with ticker context, comparison metadata, metric summaries, and a readable analyst-style note.
+
+![Generated report](assets/readme/report.png)
+
+### Interactive Charts
+
+Interactive Plotly charts make it easy to inspect individual ticker movement and compare normalized performance over the selected time interval.
+
+![Interactive charts](assets/readme/interactive-charts.png)
+
+### Analyst View And Market News
+
+The dashboard also includes analyst recommendation context, price target ranges, implied upside, and recent market news for quick research follow-through.
+
+![Analyst view and market news](assets/readme/analyst-news.png)
+
+### Recent Runs
+
+Recent analyses are saved locally and can be rerun directly from the interface.
+
+![Recent runs](assets/readme/recent-runs.png)
 
 ---
 
@@ -247,7 +288,8 @@ finance-agent-workflow/
 |-- memory/
 |   `-- store.py               # Shared memory store
 `-- assets/
-    `-- dashboard-demo.png     # README screenshot
+    |-- dashboard-demo.png     # Original dashboard screenshot
+    `-- readme/                # README screenshot gallery
 ```
 
 ---
