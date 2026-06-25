@@ -167,9 +167,9 @@ class Planner:
         # This prevents phrases like "WITH" or "SUMMARY" from being misread as symbols
         stop_words = {
             "ANALYZE", "COMPARE", "CHECK", "FOR", "OVER", "LAST", "PAST",
-            "YEAR", "YEARS", "MONTH", "MONTHS", "AND", "THE", "PLEASE",
-            "STOCK", "STOCKS", "ME", "MY", "WITH", "SUMMARY", "NO",
-            "FROM", "TO", "CASH", "CRYPTO", "USD",
+            "YEAR", "YEARS", "MONTH", "MONTHS", "DAY", "DAYS",
+            "AND", "THE", "PLEASE", "STOCK", "STOCKS", "ME", "MY",
+            "WITH", "SUMMARY", "NO", "FROM", "TO", "CASH", "CRYPTO", "USD",
         } | MONTH_STOP_WORDS
 
         for token in tokens:
@@ -199,8 +199,8 @@ class Planner:
 
         words = text.split()
 
-        # Case 1: compact periods like "1mo", "3mo", "6mo", "1y", "2y"
-        compact_period = re.search(r"\b(\d+)(mo|y)\b", text)
+        # Case 1: compact periods like "1d", "5d", "1mo", "3mo", "6mo", "1y", "2y"
+        compact_period = re.search(r"\b(\d+)(d|mo|y)\b", text)
         if compact_period:
             period = f"{compact_period.group(1)}{compact_period.group(2)}"
 
@@ -213,6 +213,8 @@ class Planner:
                     period = "1y"
                 elif "month" in next_word:
                     period = "1mo"
+                elif "day" in next_word:
+                    period = "1d"
 
         # Case 3: phrases like "last 6 months", "past 2 years"
         for i, word in enumerate(words):
@@ -225,6 +227,8 @@ class Planner:
                         period = f"{number_word}y"
                     elif "month" in unit_word:
                         period = f"{number_word}mo"
+                    elif "day" in unit_word:
+                        period = f"{number_word}d"
 
         # Case 4: original support for "1 year", "6 months"
         for i, word in enumerate(words):
@@ -235,6 +239,8 @@ class Planner:
                     period = f"{word}y"
                 elif "month" in unit:
                     period = f"{word}mo"
+                elif "day" in unit:
+                    period = f"{word}d"
 
         if custom_range:
             period = custom_range["period"]
