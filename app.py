@@ -1,16 +1,24 @@
 from flask import Flask, render_template, request, send_file, abort, redirect, url_for, jsonify
 from pathlib import Path
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import re
+import threading
 import yfinance as yf
 from main import run_analysis_from_request
 from history import clear_history, delete_history_file, load_recent_history
+from watchlist import (
+    add_to_watchlist,
+    build_watchlist_summary,
+    load_watchlist,
+    remove_from_watchlist,
+)
 from tools.interactive_charts import (
     build_comparison_chart_json,
     build_price_chart_json,
 )
-from tools.analyst import logo_url_for_ticker
+from tools.analyst import logo_candidates_for_ticker, logo_url_for_ticker
 from tools.crypto import is_crypto_symbol, normalize_crypto_symbol
 
 app = Flask(__name__)
@@ -20,12 +28,14 @@ ALLOWED_FILE_DIRS = [
     PROJECT_ROOT / "reports" / "generated",
 ]
 INTERVAL_OPTIONS = [
-    {"value": "1mo", "label": "1M", "phrase": "1 month"},
-    {"value": "3mo", "label": "3M", "phrase": "3 months"},
-    {"value": "6mo", "label": "6M", "phrase": "6 months"},
-    {"value": "1y", "label": "1Y", "phrase": "1 year"},
-    {"value": "2y", "label": "2Y", "phrase": "2 years"},
-    {"value": "5y", "label": "5Y", "phrase": "5 years"},
+    {"value": "1d",  "label": "1D",  "phrase": "1 day"},
+    {"value": "5d",  "label": "5D",  "phrase": "5 days"},
+    {"value": "1mo", "label": "1M",  "phrase": "1 month"},
+    {"value": "3mo", "label": "3M",  "phrase": "3 months"},
+    {"value": "6mo", "label": "6M",  "phrase": "6 months"},
+    {"value": "1y",  "label": "1Y",  "phrase": "1 year"},
+    {"value": "2y",  "label": "2Y",  "phrase": "2 years"},
+    {"value": "5y",  "label": "5Y",  "phrase": "5 years"},
 ]
 INTERVAL_PHRASES = {
     option["value"]: option["phrase"]
@@ -175,6 +185,19 @@ def format_date_label(value):
         return datetime.fromisoformat(str(value)).strftime("%b %d, %Y")
     except ValueError:
         return str(value)
+
+def format_history_timestamp(timestamp):
+    """Format a saved run timestamp (YYYY-MM-DD_HH-MM-SS) as a clean
+    '06/25/2026 - 3:24 PM EST' label for the Recent Runs sidebar."""
+    if not timestamp:
+        return ""
+    try:
+        dt = datetime.strptime(str(timestamp), "%Y-%m-%d_%H-%M-%S")
+    except (ValueError, TypeError):
+        return str(timestamp)
+
+    hour = dt.strftime("%I").lstrip("0") or "12"   # 02 PM -> 2 PM
+    return f"{dt.month:02d}/{dt.day:02d}/{dt.year} - {hour}:{dt.strftime('%M %p')} EST"
 
 def format_signed_percent(value):
     if value is None:
@@ -466,6 +489,163 @@ def live_quotes():
     })
 
 
+@app.route("/api/tape-quotes")
+def tape_quotes():
+    """Bulk quote fetch for the ticker tape — parallel, up to 20 symbols."""
+    raw_tickers = request.args.get("tickers", "")
+    tickers = [t.strip().upper() for t in raw_tickers.split(",") if t.strip()]
+    tickers = list(dict.fromkeys(tickers))[:60]
+
+    if not tickers:
+        return jsonify({"quotes": {}, "errors": {}}), 400
+
+    quotes = {}
+    errors = {}
+
+    def _fetch(ticker):
+        try:
+            return ticker, fetch_live_quote(ticker), None
+        except Exception as exc:
+            return ticker, None, str(exc)
+
+    with ThreadPoolExecutor(max_workers=min(len(tickers), 20)) as pool:
+        for ticker, quote, err in pool.map(_fetch, tickers):
+            if quote:
+                quotes[ticker] = quote
+            else:
+                errors[ticker] = err
+
+    return jsonify({
+        "quotes": quotes,
+        "errors": errors,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    })
+
+
+def _fetch_watchlist_quotes(items):
+    """Fetch live quotes for every watchlist ticker in parallel."""
+    tickers = [item["ticker"] for item in items]
+    quotes = {}
+    errors = {}
+    if not tickers:
+        return quotes, errors
+
+    def _fetch(ticker):
+        try:
+            return ticker, fetch_live_quote(ticker), None
+        except Exception as exc:
+            return ticker, None, str(exc)
+
+    with ThreadPoolExecutor(max_workers=min(len(tickers), 20)) as pool:
+        for ticker, quote, err in pool.map(_fetch, tickers):
+            if quote:
+                quotes[ticker] = quote
+            else:
+                errors[ticker] = err
+    return quotes, errors
+
+
+# Logo sources are resolved over the network the first time a ticker is seen,
+# then cached on disk. That network work must never run inside the 30-second
+# watchlist poll: a slow probe would stall the (single-shared) request handling
+# and freeze every live price. So the poll path reads logos from cache only, and
+# this warmer resolves them once per ticker in the background.
+_logo_warm_seen = set()
+_logo_warm_lock = threading.Lock()
+
+
+def _warm_logos_async(tickers):
+    """Resolve + cache logo sources for new tickers off the request path."""
+    with _logo_warm_lock:
+        fresh = [t for t in tickers if t and t not in _logo_warm_seen]
+        _logo_warm_seen.update(fresh)
+    if not fresh:
+        return
+
+    def _run():
+        for ticker in fresh:
+            try:
+                logo_candidates_for_ticker(ticker, allow_network=True)
+            except Exception:
+                pass
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _watchlist_items_payload(items):
+    """Attach ordered logo candidates to each item for client-side rendering.
+
+    Cache-only (allow_network=False) so a poll never blocks on the network;
+    `_warm_logos_async` populates that cache in the background.
+    """
+    if not items:
+        return []
+
+    return [
+        {
+            "ticker": item["ticker"],
+            "shares": item.get("shares"),
+            "logos": logo_candidates_for_ticker(item["ticker"], allow_network=False),
+        }
+        for item in items
+    ]
+
+
+@app.route("/api/watchlist")
+def watchlist_summary():
+    items = load_watchlist()
+    _warm_logos_async([item["ticker"] for item in items])
+    quotes, errors = _fetch_watchlist_quotes(items)
+    summary = build_watchlist_summary(items, quotes)
+    return jsonify({
+        "items": _watchlist_items_payload(items),
+        "summary": summary,
+        "errors": errors,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    })
+
+
+@app.route("/watchlist/add", methods=["POST"])
+def watchlist_add():
+    payload = request.get_json(silent=True) or request.form
+    ticker = (payload.get("ticker") or "").strip().upper()
+    shares = payload.get("shares")
+
+    if not ticker:
+        return jsonify({"ok": False, "error": "Ticker is required."}), 400
+
+    # Validate the symbol by confirming a live quote exists. This rejects
+    # garbage input (e.g. a full sentence) before it lands in the watchlist.
+    try:
+        fetch_live_quote(ticker)
+    except Exception:
+        return jsonify({"ok": False, "error": f"Couldn't find a quote for “{ticker}”."}), 400
+
+    try:
+        items = add_to_watchlist(ticker, shares)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    # Warm this ticker's logo cache once (network) so the cache-only payload
+    # below returns its real brand mark on the very first render.
+    try:
+        logo_candidates_for_ticker(ticker, allow_network=True)
+        with _logo_warm_lock:
+            _logo_warm_seen.add(ticker)
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "items": _watchlist_items_payload(items)})
+
+
+@app.route("/watchlist/remove", methods=["POST"])
+def watchlist_remove():
+    payload = request.get_json(silent=True) or request.form
+    ticker = (payload.get("ticker") or "").strip().upper()
+    items = remove_from_watchlist(ticker)
+    return jsonify({"ok": True, "items": _watchlist_items_payload(items)})
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = None
@@ -520,17 +700,18 @@ def index():
 
                         price_data = memory.get(f"{ticker}_data")
                         period = result.get("period", "")
+                        metrics = memory.get(f"{ticker}_metrics", {}) or {}
+                        analyst_view = memory.get(f"{ticker}_analyst_view") or {}
+                        logo_url = analyst_view.get("logo_url") or logo_url_for_ticker(ticker)
+
                         if price_data is not None:
                             interactive_chart_entries.append({
                                 "id": f"interactive-chart-{ticker}",
                                 "ticker": ticker,
+                                "logo_url": logo_url,
                                 "figure_json": build_price_chart_json(price_data, ticker, period),
                                 "summary": build_chart_summary(price_data),
                             })
-
-                        metrics = memory.get(f"{ticker}_metrics", {}) or {}
-                        analyst_view = memory.get(f"{ticker}_analyst_view") or {}
-                        logo_url = analyst_view.get("logo_url") or logo_url_for_ticker(ticker)
                         metric_cards.append({
                             "ticker": ticker,
                             "logo_url": logo_url,
@@ -599,6 +780,8 @@ def index():
                 error = str(e)
 
     recent_runs = load_recent_history(limit=5)
+    for run in recent_runs:
+        run["display_time"] = format_history_timestamp(run.get("timestamp"))
 
     return render_template(
         "index.html",
@@ -625,4 +808,6 @@ def index():
     )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # threaded=True so a slow request (e.g. a first-time logo probe) can never
+    # block the live-quote endpoints that poll every few seconds.
+    app.run(debug=True, threaded=True)
