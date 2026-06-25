@@ -107,39 +107,39 @@ flowchart LR
 
 ### Dashboard Overview
 
-The main workspace combines plain-English analysis, interval controls, summary controls, quick navigation, live quote cards, and performance metrics in one dashboard.
+A workstation-style landing view with a live market ticker tape, a plain-English request box, interval and summary controls, a live watchlist panel, and recent-run history.
 
 ![Dashboard overview](assets/readme/dashboard-overview.png)
 
+### Performance Metrics
+
+A metrics overview card surfaces the latest price, total return, volatility, and Sharpe ratio at a glance for each analyzed ticker.
+
+![Performance metrics overview](assets/readme/report.png)
+
+### Generated Report And Interactive Charts
+
+Each run produces an analyst-style report with the full metric set — return, volatility, Sharpe, annualized Sharpe, CAGR, max drawdown, and moving averages — alongside interactive Plotly price charts with hover inspection.
+
+![Generated report and interactive charts](assets/readme/report_and_chart.png)
+
 ### Company Fundamentals And Earnings
 
-The research panels surface valuation, business context, earnings dates, EPS, revenue, estimates, and ticker-specific fundamentals without leaving the workflow.
+Research panels surface valuation, growth, sector and industry context, market cap, EPS, revenue, and upcoming earnings details without leaving the workflow.
 
 ![Company fundamentals and earnings](assets/readme/company-fundamentals-earnings.png)
 
-### Generated Report
+### Analyst View And AI Summary
 
-Each run produces a clean report section with ticker context, comparison metadata, metric summaries, and a readable analyst-style note.
+Analyst recommendation posture, price targets, target range, and implied upside sit alongside an optional AI-generated, plain-English summary of the analysis.
 
-![Generated report](assets/readme/report.png)
+![Analyst view and AI summary](assets/readme/analyst_and_ai.png)
 
-### Interactive Charts
+### Market News
 
-Interactive Plotly charts make it easy to inspect individual ticker movement and compare normalized performance over the selected time interval.
+Recent ticker-related headlines are pulled into the same workflow so research context stays nearby.
 
-![Interactive charts](assets/readme/interactive-charts.png)
-
-### Analyst View And Market News
-
-The dashboard also includes analyst recommendation context, price target ranges, implied upside, and recent market news for quick research follow-through.
-
-![Analyst view and market news](assets/readme/analyst-news.png)
-
-### Recent Runs
-
-Recent analyses are saved locally and can be rerun directly from the interface.
-
-![Recent runs](assets/readme/recent-runs.png)
+![Market news](assets/readme/news.png)
 
 ---
 
