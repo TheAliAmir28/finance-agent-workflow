@@ -2,15 +2,18 @@
 
 # Finance Agent Workflow
 
-### A local-first market research dashboard for stocks, crypto, charts, fundamentals, earnings, news, and analyst-style reports.
+### An agentic, multi-tool market-research platform that turns one plain-English request into a full equities & crypto research workspace — live in production on AWS.
 
-[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-Web_App-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![yfinance](https://img.shields.io/badge/yfinance-Market_Data-2563EB?style=for-the-badge)](https://pypi.org/project/yfinance/)
+[![Gunicorn](https://img.shields.io/badge/Gunicorn-WSGI-499848?style=for-the-badge&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
+[![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS-Elastic_Beanstalk-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/elasticbeanstalk/)
 [![Plotly](https://img.shields.io/badge/Plotly-Interactive_Charts-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
-[![Local App](https://img.shields.io/badge/Local_First-Research_Workflow-38BDF8?style=for-the-badge)](#getting-started)
+[![OpenAI](https://img.shields.io/badge/OpenAI-AI_Summaries-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/)
 
-Analyze tickers, compare performance, inspect live prices, review fundamentals, scan earnings, read market news, and generate a clean report from one plain-English request.
+**[▶ Live Demo](http://finance-agent-env.eba-ugycpapf.us-east-1.elasticbeanstalk.com)** — running on AWS Elastic Beanstalk
+
+Plan analyses from natural language, compare performance, inspect live prices, track a watchlist, review fundamentals, scan earnings, read market news, and generate analyst-style reports — all from one request.
 
 </div>
 
@@ -21,16 +24,17 @@ Analyze tickers, compare performance, inspect live prices, review fundamentals, 
 ## Table Of Contents
 
 - [Overview](#overview)
+- [Architecture](#architecture)
 - [Highlights](#highlights)
 - [Screenshots](#screenshots)
 - [Demo Prompts](#demo-prompts)
 - [How It Works](#how-it-works)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-- [Use It On Your Phone](#use-it-on-your-phone)
+- [Deployment](#deployment)
 - [Optional AI Summaries](#optional-ai-summaries)
 - [Project Structure](#project-structure)
-- [Resume Value](#resume-value)
+- [What This Project Demonstrates](#what-this-project-demonstrates)
 - [Limitations](#limitations)
 - [Future Improvements](#future-improvements)
 - [License](#license)
@@ -39,9 +43,42 @@ Analyze tickers, compare performance, inspect live prices, review fundamentals, 
 
 ## Overview
 
-Finance Agent Workflow is a polished Flask application that turns a natural-language finance request into a complete local research workspace. It supports stocks and major crypto assets through `yfinance`, then builds a dashboard with live quote updates, performance metrics, company fundamentals, earnings context, analyst-style target data, interactive Plotly charts, market news, generated reports, and rerunnable recent analyses.
+Finance Agent Workflow turns a natural-language finance request into a complete research workspace. Instead of one monolithic handler, it uses an **agentic pipeline**: a **Planner** parses the request into a structured task plan, an **Agent** executes those tasks across 10+ focused tools, and a shared **memory store** coordinates the results — which are then rendered into an interactive dashboard, live quote feeds, and a generated report.
 
-It is designed to feel like a compact research terminal: fast to run locally, easy to understand, and useful enough to show as a serious end-to-end portfolio project.
+It supports both equities and major crypto assets through `yfinance`, and is **deployed in production on AWS Elastic Beanstalk** behind a Gunicorn WSGI server, with optional OpenAI-powered summaries enabled through environment-based secrets.
+
+It is designed to feel like a compact research terminal: plan-driven, modular, resilient to missing third-party data, and built end-to-end from request parsing to a live, hosted deployment.
+
+---
+
+## Architecture
+
+The system follows a **Planner → Agent → Tools → Memory** pattern, mirroring how modern AI agent frameworks decompose and execute work.
+
+```mermaid
+flowchart LR
+    A["Natural-language request"] --> B["Flask UI / API"]
+    B --> C["Planner<br/>(intent + entity extraction)"]
+    C --> D["Agent<br/>(task executor)"]
+    D --> E["Tool layer (10+)"]
+    E --> E1["data_fetch · metrics · charts"]
+    E --> E2["analyst · earnings · fundamentals"]
+    E --> E3["news · crypto · llm_client"]
+    E1 --> F["Shared Memory Store"]
+    E2 --> F
+    E3 --> F
+    F --> G["Report Synthesizer + Dashboard"]
+    G --> H["Interactive Web Dashboard"]
+    H --> I["Live quote polling<br/>(ThreadPoolExecutor)"]
+    H --> J["Watchlist + run history"]
+    H -. deployed on .-> K["AWS Elastic Beanstalk<br/>(Gunicorn)"]
+```
+
+- **Planner (`planner.py`)** — converts plain English into a structured task list: extracts tickers, company-name aliases, crypto symbols, time periods, custom date ranges (`from <date> to <date>`), and summary preferences.
+- **Agent (`agent.py`)** — executes the plan task-by-task, writing every result to shared memory and wrapping each third-party call so a partial failure never crashes the run.
+- **Tool layer (`tools/`)** — focused, single-responsibility modules for data, metrics, charting, analyst data, earnings, fundamentals, news, crypto normalization, and the optional LLM client.
+- **Memory (`memory/store.py`)** — a shared key-value blackboard the planner, agent, reports, and dashboard all read from.
+- **Reports (`reports/`)** — synthesize a text report and build the dashboard artifact from memory.
 
 ---
 
@@ -49,18 +86,20 @@ It is designed to feel like a compact research terminal: fast to run locally, ea
 
 | Feature | What It Does |
 | --- | --- |
-| Plain-English requests | Parses prompts like `Analyze AAPL and NVDA` or `Analyze BTC and ETH` into structured analysis tasks. |
+| Agentic task planning | Parses prompts like `Analyze AAPL and NVDA` or `Compare BTC and ETH from Jan 2024 to June 2024` into a structured, executable task plan. |
 | Stocks and crypto | Supports equities plus crypto aliases such as `BTC`, `ETH`, `Bitcoin`, and `Ethereum` through normalized `yfinance` tickers. |
-| Live price updates | Refreshes visible quote values in the browser without requiring a full page reload. |
-| Metrics overview | Shows return, volatility, Sharpe ratio, winner callouts, and live movement. |
-| Company fundamentals | Displays valuation, growth, profitability, sector, industry, market cap, beta, and related snapshots where available. |
-| Earnings panel | Shows latest report context, fiscal period, EPS, revenue, estimates, and next earnings call estimates when available. |
-| Analyst view | Presents recommendation posture, analyst count, price targets, target range, and implied upside. |
-| Interactive charts | Uses Plotly for individual price charts and normalized growth comparison charts with hover inspection. |
+| Live watchlist | Persistent watchlist (with optional share holdings) showing live prices, value-weighted daily P/L, position values, and an auto-generated leader/laggard narrative. |
+| Real-time quotes | Browser polling backed by concurrent quote endpoints (`ThreadPoolExecutor`, up to 20 parallel fetches) plus a bulk live market ticker tape. |
+| Quantitative metrics | Computes total return, volatility, Sharpe & annualized Sharpe, CAGR, max drawdown, and 20/50-day moving averages. |
+| Custom date ranges | Understands both relative ranges (`last 6 months`) and explicit ranges (`from 2024-01 to 2024-06`). |
+| Company fundamentals | Valuation, growth, profitability, sector, industry, and market cap snapshots where available. |
+| Earnings panel | Latest report context, fiscal period, EPS, revenue, estimates, and next-call estimates when available. |
+| Analyst view | Recommendation posture, analyst count, price targets, target range, and implied upside. |
+| Interactive charts | Plotly individual price charts and normalized growth-comparison charts with hover inspection. |
 | Market news | Pulls recent ticker-related news into the same workflow so research context stays nearby. |
+| Optional AI summaries | OpenAI-generated plain-English summaries that degrade gracefully when the key or API is unavailable. |
 | Recent runs | Saves previous analyses and lets you rerun them directly from the UI. |
-| UI controls | Provides dropdowns for time interval and summary mode, so users are not forced to rely only on natural language. |
-| Local network access | Can be opened from a phone on the same Wi-Fi network for quick mobile testing. |
+| Resilient by design | Every external call is isolated so missing fundamentals, earnings, or analyst data never breaks a run. |
 
 ---
 
@@ -68,7 +107,7 @@ It is designed to feel like a compact research terminal: fast to run locally, ea
 
 ### Dashboard Overview
 
-The main workspace combines plain-English analysis, interval controls, summary controls, quick navigation, live quote cards, and performance metrics in one local dashboard.
+The main workspace combines plain-English analysis, interval controls, summary controls, quick navigation, live quote cards, and performance metrics in one dashboard.
 
 ![Dashboard overview](assets/readme/dashboard-overview.png)
 
@@ -112,38 +151,26 @@ Analyze BTC and ETH
 Analyze MSFT and GOOGL for 6 months
 Analyze TSLA for 3 months no summary
 Compare Bitcoin and Ethereum over 1 year
+Analyze AAPL from 2024-01 to 2024-06
 ```
 
 The app also includes dropdown controls for:
 
-- Time interval: `1M`, `3M`, `6M`, `1Y`, and more depending on the configured options.
+- Time interval: `1D`, `5D`, `1M`, `3M`, `6M`, `1Y`, `2Y`, `5Y`.
 - Summary mode: with summary or no summary.
 
 ---
 
 ## How It Works
 
-```mermaid
-flowchart LR
-    A["User request"] --> B["Flask UI"]
-    B --> C["Planner"]
-    C --> D["Agent"]
-    D --> E["Market data tools"]
-    E --> F["Metrics and fundamentals"]
-    E --> G["Earnings, analyst, and news tools"]
-    F --> H["Reports and dashboard data"]
-    G --> H
-    H --> I["Interactive web dashboard"]
-    I --> J["Live quote polling"]
-    I --> K["Recent run history"]
-```
-
 The workflow is intentionally modular:
 
-- `planner.py` extracts tickers, crypto symbols, time periods, and summary preferences.
-- `agent.py` coordinates the research workflow and builds the result object.
-- `tools/` contains focused data, charting, crypto, earnings, fundamentals, analyst, and news helpers.
-- `templates/index.html` renders the full workstation-style dashboard.
+- `planner.py` extracts tickers, crypto symbols, time periods, custom date ranges, and summary preferences.
+- `agent.py` executes the task plan, fetching data and analytics tool-by-tool with isolated error handling.
+- `tools/` contains focused data, charting, crypto, earnings, fundamentals, analyst, news, and LLM helpers.
+- `memory/store.py` is the shared store every stage reads from and writes to.
+- `reports/` synthesizes the text report and dashboard artifact.
+- `app.py` serves the dashboard plus concurrent live-quote, ticker-tape, and watchlist APIs.
 - `history.py` saves and reloads recent analyses for quick reruns.
 
 ---
@@ -152,13 +179,15 @@ The workflow is intentionally modular:
 
 | Layer | Tools |
 | --- | --- |
-| Backend | Python, Flask, Gunicorn |
+| Backend | Python 3.11, Flask, Gunicorn |
+| Architecture | Planner / Agent / Tools / Memory pipeline |
+| Concurrency | `ThreadPoolExecutor`, threaded WSGI, background cache warming |
 | Market data | yfinance |
 | Data processing | pandas, NumPy |
 | Visualization | Plotly, Matplotlib |
 | Frontend | HTML, CSS, JavaScript |
-| Optional AI | OpenAI API |
-| Deployment-ready files | Procfile, `.ebignore`, Gunicorn command |
+| AI | OpenAI API (optional, graceful degradation) |
+| Deployment | AWS Elastic Beanstalk, Gunicorn, Procfile, environment-based secrets |
 
 ---
 
@@ -180,13 +209,6 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Windows Command Prompt:
-
-```bat
-python -m venv .venv
-.venv\Scripts\activate
-```
-
 macOS or Linux:
 
 ```bash
@@ -202,45 +224,46 @@ pip install -r requirements.txt
 
 ### 4. Run The App
 
+Development server:
+
 ```bash
 python -m flask --app app run --host=0.0.0.0 --port=5000
 ```
 
-Open the app locally:
+Production-style (same server used in deployment):
 
-```text
-http://127.0.0.1:5000
+```bash
+gunicorn --bind :8000 --workers 2 --threads 4 --timeout 120 app:app
 ```
+
+Then open `http://127.0.0.1:5000` (dev) or `http://127.0.0.1:8000` (gunicorn).
+
+> Tip: with `--host=0.0.0.0` you can also open the app from a phone on the same Wi-Fi using the machine's LAN address (e.g. `http://192.168.1.152:5000`). Use `http`, not `https`, for the local server.
 
 ---
 
-## Use It On Your Phone
+## Deployment
 
-To test the app from a phone on the same Wi-Fi network:
-
-1. Run Flask with LAN access enabled:
-
-```bash
-python -m flask --app app run --host=0.0.0.0 --port=5000
-```
-
-2. Look for the local network address in the terminal. It will look similar to:
+The app is deployed to **AWS Elastic Beanstalk** (Python 3.11 on Amazon Linux 2023) and served by **Gunicorn** via the included `Procfile`:
 
 ```text
-http://192.168.1.152:5000
+web: gunicorn --bind :8000 --workers 2 --threads 4 --timeout 120 app:app
 ```
 
-3. Open that address on your phone.
+Deployment notes:
 
-Make sure the phone and computer are on the same Wi-Fi network. Use `http`, not `https`, because the local Flask development server is not serving TLS.
+- **Single-instance** environment — the app persists run history, the watchlist, and caches to local disk, so a single instance keeps that state coherent (no load-balancer state splitting).
+- **Secrets via environment** — `OPENAI_API_KEY` is set as an Elastic Beanstalk environment property, never committed to source.
+- **`.ebignore`** keeps virtual environments, caches, and generated output out of the deployment bundle.
+- The same `Procfile` works on other Python hosts (Render, Railway, Fly.io) with minimal changes.
 
 ---
 
 ## Optional AI Summaries
 
-The app works without an OpenAI API key. AI summaries are optional and can be disabled from the UI.
+The app works without an OpenAI API key — AI summaries are optional and can be toggled off from the UI. When a key is present, summaries are generated; when it is missing or the API errors, the app silently continues without them.
 
-To enable summaries, set `OPENAI_API_KEY`.
+To enable summaries locally, set `OPENAI_API_KEY`:
 
 Windows PowerShell:
 
@@ -254,7 +277,11 @@ macOS or Linux:
 export OPENAI_API_KEY="your_api_key_here"
 ```
 
-Restart the terminal after setting the key.
+In production (Elastic Beanstalk), set it as an environment property:
+
+```bash
+eb setenv OPENAI_API_KEY=your_api_key_here
+```
 
 ---
 
@@ -262,52 +289,50 @@ Restart the terminal after setting the key.
 
 ```text
 finance-agent-workflow/
-|-- app.py                     # Flask routes, UI orchestration, live quote API
-|-- agent.py                   # Coordinates the analysis workflow
-|-- planner.py                 # Parses requests into tickers, intervals, and options
+|-- app.py                     # Flask routes, live quote / tape / watchlist APIs, UI orchestration
+|-- agent.py                   # Executes the task plan across the tool layer
+|-- planner.py                 # Parses requests into tickers, ranges, and options
+|-- watchlist.py               # Watchlist persistence and daily P/L summary
 |-- history.py                 # Saves and loads recent analysis runs
 |-- main.py                    # CLI entry point
 |-- requirements.txt           # Python dependencies
-|-- Procfile                   # Gunicorn production command
+|-- Procfile                   # Gunicorn production command (Elastic Beanstalk)
+|-- .ebignore                  # Files excluded from the EB deployment bundle
 |-- templates/
 |   `-- index.html             # Main dashboard UI
 |-- tools/
 |   |-- analyst.py             # Analyst recommendations and target data
-|   |-- charts.py              # Static chart helpers
+|   |-- charts.py              # Static chart helpers (Matplotlib)
 |   |-- crypto.py              # Crypto symbol normalization
-|   |-- data_fetch.py          # Historical and quote data retrieval
+|   |-- data_fetch.py          # Historical and quote data retrieval + caching
 |   |-- earnings.py            # Earnings snapshots and estimates
 |   |-- fundamentals.py        # Company fundamentals
 |   |-- interactive_charts.py  # Plotly chart generation
-|   |-- metrics.py             # Return, volatility, and Sharpe calculations
+|   |-- metrics.py             # Return, volatility, Sharpe, CAGR, drawdown calculations
 |   |-- news.py                # Market news retrieval
-|   `-- llm_client.py          # Optional AI summary client
+|   `-- llm_client.py          # Optional OpenAI summary client
 |-- reports/
 |   |-- dashboard.py           # Dashboard artifact builder
 |   `-- synthesizer.py         # Text report generator
 |-- memory/
 |   `-- store.py               # Shared memory store
 `-- assets/
-    |-- dashboard-demo.png     # Original dashboard screenshot
     `-- readme/                # README screenshot gallery
 ```
 
 ---
 
-## Resume Value
+## What This Project Demonstrates
 
-This project demonstrates a complete, practical software workflow:
+- **Agentic system design** — a Planner/Agent/Tools/Memory pipeline that decomposes a request and orchestrates many focused tools.
+- **Natural-language parsing** — intent and entity extraction into a structured, executable plan.
+- **Concurrency** — parallel live-quote pipelines with `ThreadPoolExecutor` and background cache warming behind a threaded WSGI server.
+- **Quantitative analytics** — return, volatility, Sharpe, CAGR, and drawdown computed from price history.
+- **Third-party API integration** — `yfinance` market data and the OpenAI API, both with graceful degradation.
+- **Resilience** — isolated error handling so missing data never breaks an end-to-end run.
+- **Full deployment** — packaged and shipped to production on AWS Elastic Beanstalk with Gunicorn and environment-based secrets.
 
-- Natural-language input parsing into structured tasks.
-- Modular backend design with focused tool boundaries.
-- Financial data retrieval, normalization, and analytics.
-- Real-time browser updates through a local API endpoint.
-- Interactive data visualization with Plotly.
-- Responsive dashboard design with polished UI states.
-- Graceful handling of missing third-party data.
-- Local-first development with deployment-ready conventions.
-
-It is more than a chart viewer: it is a small research system that plans work, fetches data, computes analytics, renders a dashboard, saves history, and presents results in a user-friendly interface.
+It is more than a chart viewer: it is a small research system that plans work, fetches data concurrently, computes analytics, renders an interactive dashboard, tracks a live watchlist, saves history, and runs as a deployed web service.
 
 ---
 
@@ -315,8 +340,8 @@ It is more than a chart viewer: it is a small research system that plans work, f
 
 - Market, fundamentals, earnings, analyst, and news data depend on third-party availability through `yfinance` and related sources.
 - Some tickers may have incomplete earnings, revenue estimate, analyst, or company profile data.
-- Live quote updates are intended for local research convenience, not high-frequency trading.
-- The Flask development server is not a production WSGI server.
+- Live quote updates are intended for research convenience, not high-frequency trading.
+- Run history, watchlist, and caches are stored on the instance's local disk, so they reset if the environment is rebuilt (a database backend is a planned improvement).
 - This project is for education and portfolio demonstration. It is not financial advice.
 
 ---
@@ -324,25 +349,11 @@ It is more than a chart viewer: it is a small research system that plans work, f
 ## Future Improvements
 
 - Export reports to PDF.
-- Add portfolio/watchlist mode.
-- Add custom date range controls.
-- Add persistent database-backed run history.
+- Add persistent database-backed history and watchlist storage.
+- Add a custom domain and HTTPS to the deployment.
 - Add authentication for hosted deployments.
 - Add more data providers for richer earnings and analyst coverage.
 - Add automated tests and CI.
-- Add deployment screenshots and a short demo GIF.
-
----
-
-## Deployment Notes
-
-The repository includes a `Procfile` for Gunicorn-based deployment:
-
-```text
-web: gunicorn --bind :8000 app:app
-```
-
-It can be adapted for platforms such as AWS Elastic Beanstalk, Render, Railway, Fly.io, or other Python web hosting environments.
 
 ---
 
