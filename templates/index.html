@@ -2153,18 +2153,26 @@
            offsetWidth) and renders an empty plot. We counter-zoom the chart
            containers by the inverse factor so they render at net scale 1.0 —
            exactly Plotly's known-good condition. */
+        /* When the body is zoomed, the viewport-relative container width is
+           scaled up too, so a plain `100vw - 48px` renders WIDER than the real
+           viewport and — because body has overflow-x: hidden — the right-hand
+           watchlist gets clipped. Divide the fluid width by the zoom factor so
+           the rendered width lands back inside the viewport. */
         @media (min-width: 1500px) {
             body { zoom: 1.05; }
+            .container { width: min(1680px, calc((100vw - 48px) / 1.05)); }
             .interactive-chart { zoom: 0.952381; }
         }
 
         @media (min-width: 1920px) {
             body { zoom: 1.12; }
+            .container { width: min(1680px, calc((100vw - 48px) / 1.12)); }
             .interactive-chart { zoom: 0.892857; }
         }
 
         @media (min-width: 2560px) {
             body { zoom: 1.22; }
+            .container { width: min(1680px, calc((100vw - 48px) / 1.22)); }
             .interactive-chart { zoom: 0.819672; }
         }
 
