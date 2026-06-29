@@ -11,6 +11,7 @@ from history import clear_history, delete_history_file, load_recent_history
 from watchlist import (
     add_to_watchlist,
     build_watchlist_summary,
+    clear_watchlist,
     load_watchlist,
     remove_from_watchlist,
 )
@@ -415,6 +416,7 @@ def fetch_live_quote(ticker):
         "change_percent_text": format_signed_percent(change_percent),
         "direction": "positive" if change and change > 0 else "negative" if change and change < 0 else "neutral",
         "updated_at": datetime.now().isoformat(timespec="seconds"),
+        "is_crypto": is_crypto_symbol(symbol),
         "source": "Yahoo Finance",
     }
 
@@ -643,6 +645,12 @@ def watchlist_remove():
     payload = request.get_json(silent=True) or request.form
     ticker = (payload.get("ticker") or "").strip().upper()
     items = remove_from_watchlist(ticker)
+    return jsonify({"ok": True, "items": _watchlist_items_payload(items)})
+
+
+@app.route("/watchlist/clear", methods=["POST"])
+def watchlist_clear():
+    items = clear_watchlist()
     return jsonify({"ok": True, "items": _watchlist_items_payload(items)})
 
 

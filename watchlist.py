@@ -100,6 +100,13 @@ def remove_from_watchlist(ticker):
     return items
 
 
+def clear_watchlist():
+    """Remove every ticker. Returns the (now empty) list."""
+    items = []
+    _save(items)
+    return items
+
+
 def _format_percent(value):
     if value is None:
         return "N/A"
@@ -140,6 +147,7 @@ def build_watchlist_summary(items, quotes):
             "change_percent": change_percent,
             "change_percent_text": quote.get("change_percent_text", "N/A"),
             "direction": quote.get("direction", "neutral"),
+            "is_crypto": quote.get("is_crypto", False),
             "position_value": None,
             "position_value_text": None,
             "day_change_value": None,

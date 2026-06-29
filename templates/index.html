@@ -44,12 +44,12 @@
             --green:          #10B981;
             --green-bright:   #34D399;
             --green-dim:      rgba(16,185,129,0.10);
-            --green-text:     #047857;
+            --green-text:     #00A15C;
 
             --rose:           #F43F5E;
             --rose-bright:    #FB7185;
             --rose-dim:       rgba(244,63,94,0.10);
-            --rose-text:      #BE123C;
+            --rose-text:      #E11D48;
 
             --amber:          #D97706;
             --amber-dim:      rgba(217,119,6,0.10);
@@ -116,9 +116,9 @@
             --cyan-glow:      rgba(56,189,248,0.35);
             --cyan-line:      rgba(56,189,248,0.28);
             --green-dim:      rgba(16,185,129,0.15);
-            --green-text:     #6EE7B7;
+            --green-text:     #34D399;
             --rose-dim:       rgba(244,63,94,0.15);
-            --rose-text:      #FCA5A5;
+            --rose-text:      #FB7185;
             --amber:          #F59E0B;
             --amber-dim:      rgba(245,158,11,0.15);
             --purple:         #8B5CF6;
@@ -254,26 +254,9 @@
             position: relative;
             width: 34px;
             height: 34px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, var(--cyan), var(--cyan-bright));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            font-size: 15px;
-            color: #050A12;
+            object-fit: contain;
             flex-shrink: 0;
-            box-shadow: 0 0 20px var(--cyan-glow);
-        }
-
-        .logo-mark::after {
-            content: '';
-            position: absolute;
-            inset: -1px;
-            border-radius: 9px;
-            background: linear-gradient(135deg, var(--cyan), transparent);
-            z-index: -1;
-            opacity: 0.4;
+            filter: drop-shadow(0 0 6px var(--cyan-glow));
         }
 
         .logo-text {
@@ -613,18 +596,39 @@
         }
 
         .hero h1 .gradient-text {
-            background: linear-gradient(135deg, var(--cyan), var(--cyan-bright), #a78bfa);
+            background: linear-gradient(
+                90deg,
+                var(--cyan), var(--cyan-bright), #34d399,
+                #a78bfa, #f472b6, var(--cyan-bright), var(--cyan)
+            );
+            background-size: 300% 100%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            color: transparent;
+            animation: hue-cycle 16s linear infinite;
+        }
+
+        @keyframes hue-cycle {
+            to { background-position: 300% 50%; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .hero h1 .gradient-text { animation: none; }
         }
 
         .hero-sub {
             color: var(--text-muted);
             font-size: 15px;
             line-height: 1.65;
-            max-width: 680px;
             margin: 0 0 28px;
+            white-space: nowrap;
+        }
+
+        /* Let the sub-headline wrap again on narrower viewports so it
+           never overflows the hero on small screens. */
+        @media (max-width: 720px) {
+            .hero-sub { white-space: normal; }
         }
 
         /* ── Analysis form ── */
@@ -720,7 +724,6 @@
             cursor: pointer;
             transition: all 200ms ease;
             position: relative;
-            overflow: hidden;
             white-space: nowrap;
             box-shadow: 0 4px 20px rgba(56,189,248,0.4);
         }
@@ -729,14 +732,68 @@
             content: '';
             position: absolute;
             inset: 0;
+            border-radius: inherit;
             background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
             opacity: 0;
             transition: opacity 200ms ease;
+            z-index: 1;
+        }
+
+        /* Rotating cyan/purple glow around the button on hover */
+        @property --glow-angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        .btn-run::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            padding: 3.5px;               /* ring thickness */
+            background: conic-gradient(
+                from var(--glow-angle),
+                transparent 0deg,
+                #06e7ff 50deg,
+                #22d3ee 110deg,
+                #c084fc 180deg,
+                #a855f7 230deg,
+                transparent 270deg,
+                transparent 360deg
+            );
+            /* keep only the border ring, punch out the interior */
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+            filter:
+                drop-shadow(0 0 5px #06e7ff)
+                drop-shadow(0 0 11px #a855f7)
+                drop-shadow(0 0 20px #22d3ee)
+                drop-shadow(0 0 30px rgba(168,85,247,0.65));
+            opacity: 0;
+            z-index: 2;
+            transition: opacity 280ms ease;
+            pointer-events: none;
+        }
+
+        @keyframes glow-spin {
+            to { --glow-angle: 360deg; }
         }
 
         .btn-run:hover::before { opacity: 1; }
-        .btn-run:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(56,189,248,0.5); }
+        .btn-run:hover::after {
+            opacity: 0.85;
+            animation: glow-spin 6s linear infinite;
+        }
+        .btn-run:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(56,189,248,0.35); }
         .btn-run:active { transform: translateY(0); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn-run:hover::after { animation: none; }
+        }
 
         .btn-run:disabled {
             cursor: wait;
@@ -1847,6 +1904,33 @@
         }
         .wl-panel-icon svg { width: 15px; height: 15px; }
 
+        .wl-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .wl-clear {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            height: 30px;
+            padding: 0 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-subtle);
+            background: var(--surface);
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+        }
+        .wl-clear:hover { background: var(--rose-dim); color: var(--rose-text); border-color: rgba(244,63,94,0.4); }
+        .wl-clear:disabled { opacity: 0.6; cursor: wait; }
+        .wl-clear svg { width: 13px; height: 13px; }
+
         .wl-refresh {
             display: flex;
             align-items: center;
@@ -1990,15 +2074,63 @@
 
         .wl-row {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 11px;
+            flex-direction: column;
             border-radius: var(--radius);
             border: 1px solid var(--border-subtle);
             background: var(--surface);
+            overflow: hidden;
             transition: border-color 160ms ease, box-shadow 160ms ease;
         }
         .wl-row:hover { border-color: var(--border); box-shadow: var(--card-hover-sh); }
+        .wl-row.expanded { border-color: var(--cyan-line); }
+
+        .wl-row-main {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 11px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .wl-row-caret {
+            width: 14px; height: 14px;
+            flex-shrink: 0;
+            color: var(--text-dim);
+            transition: transform 220ms ease, color 160ms ease;
+        }
+        .wl-row:hover .wl-row-caret { color: var(--text-muted); }
+        .wl-row.expanded .wl-row-caret { transform: rotate(180deg); color: var(--cyan); }
+
+        /* Expanding detail drawer — animates 0fr→1fr so it grows from nothing
+           without us having to know the content height up front. */
+        .wl-row-detail {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 220ms ease;
+        }
+        .wl-row.expanded .wl-row-detail { grid-template-rows: 1fr; }
+        .wl-row-detail-inner { overflow: hidden; }
+
+        .wl-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px 14px;
+            padding: 11px;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .wl-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .wl-stat-label {
+            font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-dim);
+        }
+        .wl-stat-val {
+            font-size: 13px; font-weight: 800; font-family: var(--font-mono);
+            color: var(--text-strong); white-space: nowrap;
+        }
+        .wl-stat-val.positive { color: var(--green-text); }
+        .wl-stat-val.negative { color: var(--rose-text); }
+        .wl-stat-val.muted { color: var(--text-dim); font-weight: 600; }
 
         .wl-row-logo { width: 26px; height: 26px; border-radius: 50%; background: #fff; padding: 3px; object-fit: contain; object-position: center; flex-shrink: 0; }
         .wl-monogram {
@@ -2210,7 +2342,7 @@
 <nav class="topbar">
     <div class="topbar-left">
         <a class="logo" href="/">
-            <div class="logo-mark">FA</div>
+            <img class="logo-mark" src="{{ url_for('static', filename='logo.png') }}" alt="FinAgent logo">
             <div class="logo-text">
                 <strong>FinAgent</strong>
                 <span>AI Stock Analyzer</span>
@@ -2305,7 +2437,7 @@
         <div class="hero">
             <div class="hero-eyebrow">AI-Powered Market Research</div>
             <h1>Analyze Any Stock <span class="gradient-text">Instantly</span></h1>
-            <p class="hero-sub">Enter any ticker, compare two assets, or ask a plain-English question. The agent fetches live data, runs metrics, and generates a full analyst report.</p>
+            <p class="hero-sub">Enter any ticker or compare two assets — the agent fetches live data, runs metrics, and generates a full analyst report.</p>
 
             <form method="POST" id="analysisForm">
                 <label class="form-label" for="userInput">Analysis request</label>
@@ -2786,9 +2918,15 @@
                     </span>
                     <span>Watchlist</span>
                 </div>
-                <button type="button" class="wl-refresh" id="wlRefresh" title="Refresh quotes" aria-label="Refresh quotes">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
-                </button>
+                <div class="wl-head-actions">
+                    <button type="button" class="wl-clear" id="wlClear" title="Remove all tickers" hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/></svg>
+                        <span>Clear</span>
+                    </button>
+                    <button type="button" class="wl-refresh" id="wlRefresh" title="Refresh quotes" aria-label="Refresh quotes">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Daily headline -->
@@ -2911,6 +3049,37 @@ function setStatus(ticker, msg) {
     liveStatusNodes.filter(n => n.dataset.liveStatus === ticker).forEach(n => n.textContent = msg);
 }
 
+/* Live-price timestamps follow the US market clock (Eastern), independent of
+   the viewer's timezone. While the regular session is open (Mon–Fri, 9:30 AM–
+   4:00 PM ET) we show the current ET time; once it closes we freeze the label
+   at the 4:00 PM ET close instead of letting it keep ticking. Crypto trades
+   24/7, so it always shows the current ET time. */
+function etTimeNow() {
+    return new Date().toLocaleTimeString('en-US', {
+        timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
+    }) + ' ET';
+}
+
+function marketClockLabel(isCrypto) {
+    if (isCrypto) return etTimeNow();              // 24/7 market — never closes
+
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York', weekday: 'short',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date());
+    const pick = type => parts.find(p => p.type === type)?.value;
+    const weekday = pick('weekday');
+    let hour = parseInt(pick('hour'), 10);
+    if (hour === 24) hour = 0;                      // some engines emit 24 at midnight
+    const minutes = hour * 60 + parseInt(pick('minute'), 10);
+
+    const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday);
+    const isOpen = isWeekday && minutes >= 570 && minutes < 960;   // 9:30–16:00 ET
+
+    if (isOpen) return etTimeNow();
+    return '4:00 PM ET';                            // last regular-session close
+}
+
 const prevPrices = new Map();
 
 function applyQuote(ticker, q) {
@@ -2939,8 +3108,7 @@ function applyQuote(ticker, q) {
         n.classList.remove('positive', 'negative');
         if (q.direction === 'positive' || q.direction === 'negative') n.classList.add(q.direction);
     });
-    const t = q.updated_at ? new Date(q.updated_at) : new Date();
-    setStatus(ticker, `${t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+    setStatus(ticker, marketClockLabel(q.is_crypto));
 }
 
 async function refreshQuotes() {
@@ -2990,6 +3158,7 @@ function wlLogoError(img) {
     const addBtn    = $('#wlAddBtn');
     const errorEl   = $('#wlError');
     const refreshBtn = $('#wlRefresh');
+    const clearBtn  = $('#wlClear');
     const liveEl    = $('#wlLive');
     const updatedEl = $('#wlUpdated');
 
@@ -3021,6 +3190,7 @@ function wlLogoError(img) {
     function renderRows(summary, logos) {
         const rows = summary.rows || [];
         emptyEl.hidden = rows.length > 0;
+        clearBtn.hidden = rows.length === 0;
         listEl.innerHTML = rows.map(r => {
             const logoArr = logos[r.ticker] || [];
             const mono = esc((r.ticker || '?').slice(0, 1));
@@ -3030,40 +3200,69 @@ function wlLogoError(img) {
             const dirClass = r.direction === 'positive' ? 'positive'
                            : r.direction === 'negative' ? 'negative' : 'muted';
 
-            // Sub-line under the ticker: shares + position value for holdings,
-            // otherwise mark it as a favorite.
-            const sub = r.shares
-                ? `${r.shares} ${r.shares === 1 ? 'share' : 'shares'}` +
-                  (r.position_value_text ? ` · ${esc(r.position_value_text)}` : '')
-                : 'Favorite';
+            // Sub-line under the ticker: holdings show nothing extra here (share
+            // count and position value live in the expandable detail), favorites
+            // are tagged so they're distinguishable at a glance.
+            const sub = r.shares ? '' : 'Favorite';
 
-            // Right side: price, today's % move, and day $ P/L for holdings.
-            const pnl = (r.shares && r.day_change_value_text)
-                ? `<div class="wl-row-pnl ${(r.day_change_value || 0) >= 0 ? 'positive' : 'negative'}" data-wl-pnl="${esc(r.ticker)}">${esc(r.day_change_value_text)}</div>`
-                : '';
+            // Expanded detail: full, un-truncated breakdown. The live cells use
+            // their own *-d data attributes so updating them never collides with
+            // the collapsed row's cells. (Price stays in the collapsed view, so
+            // it's intentionally not repeated here.)
+            const detail = [];
+            detail.push(`<div class="wl-stat"><span class="wl-stat-label">Today</span><span class="wl-stat-val ${dirClass}" data-wl-change-d="${esc(r.ticker)}">${esc(r.change_percent_text || 'N/A')}</span></div>`);
+            if (r.shares) {
+                detail.push(`<div class="wl-stat"><span class="wl-stat-label">Shares</span><span class="wl-stat-val">${esc(String(r.shares))}</span></div>`);
+                detail.push(`<div class="wl-stat"><span class="wl-stat-label">Position value</span><span class="wl-stat-val" data-wl-posval="${esc(r.ticker)}">${esc(r.position_value_text || '—')}</span></div>`);
+                if (r.day_change_value_text) {
+                    const pcls = (r.day_change_value || 0) >= 0 ? 'positive' : 'negative';
+                    detail.push(`<div class="wl-stat"><span class="wl-stat-label">Day's P/L</span><span class="wl-stat-val ${pcls}" data-wl-pnl-d="${esc(r.ticker)}">${esc(r.day_change_value_text)}</span></div>`);
+                }
+            } else {
+                detail.push(`<div class="wl-stat"><span class="wl-stat-label">Type</span><span class="wl-stat-val">Favorite</span></div>`);
+            }
 
             return `
-            <div class="wl-row">
-                ${logoHtml}
-                <div class="wl-row-name">
-                    <div class="wl-row-ticker">${esc(r.ticker)}</div>
-                    <div class="wl-row-shares">${sub}</div>
+            <div class="wl-row" data-ticker="${esc(r.ticker)}">
+                <div class="wl-row-main">
+                    ${logoHtml}
+                    <div class="wl-row-name">
+                        <div class="wl-row-ticker">${esc(r.ticker)}</div>
+                        ${sub ? `<div class="wl-row-shares">${sub}</div>` : ''}
+                    </div>
+                    <div class="wl-row-figs">
+                        <div class="wl-cell-value" data-wl-price="${esc(r.ticker)}">${esc(r.price_text || '—')}</div>
+                        <div class="wl-cell-value ${dirClass}" data-wl-change="${esc(r.ticker)}" style="font-size:12px">${esc(r.change_percent_text || 'N/A')}</div>
+                    </div>
+                    <svg class="wl-row-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+                    <button type="button" class="wl-row-remove" data-remove="${esc(r.ticker)}" title="Remove ${esc(r.ticker)}" aria-label="Remove ${esc(r.ticker)}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
                 </div>
-                <div class="wl-row-figs">
-                    <div class="wl-cell-value" data-wl-price="${esc(r.ticker)}">${esc(r.price_text || '—')}</div>
-                    <div class="wl-cell-value ${dirClass}" data-wl-change="${esc(r.ticker)}" style="font-size:12px">${esc(r.change_percent_text || 'N/A')}</div>
-                    ${pnl}
+                <div class="wl-row-detail">
+                    <div class="wl-row-detail-inner">
+                        <div class="wl-stats">${detail.join('')}</div>
+                    </div>
                 </div>
-                <button type="button" class="wl-row-remove" data-remove="${esc(r.ticker)}" title="Remove ${esc(r.ticker)}" aria-label="Remove ${esc(r.ticker)}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                </button>
             </div>`;
         }).join('');
+
+        // Re-apply any rows the user had expanded before this rebuild, and drop
+        // expanded state for tickers that no longer exist.
+        const present = new Set(rows.map(r => r.ticker));
+        expandedTickers.forEach(t => { if (!present.has(t)) expandedTickers.delete(t); });
+        listEl.querySelectorAll('.wl-row').forEach(row => {
+            if (expandedTickers.has(row.dataset.ticker)) row.classList.add('expanded');
+        });
     }
 
     // Per-ticker last seen price, so we can flash the cell when it moves —
     // same mechanism the per-ticker live price card uses (prevPrices/applyQuote).
     const wlPrev = new Map();
+
+    // Tickers whose detail drawer is currently expanded (survives price refreshes
+    // and full row rebuilds).
+    const expandedTickers = new Set();
 
     function applyRowQuotes(summary) {
         (summary.rows || []).forEach(r => {
@@ -3089,19 +3288,27 @@ function wlLogoError(img) {
                      : r.direction === 'negative' ? 'negative' : 'muted');
             }
 
-            const pnlNode = listEl.querySelector(`[data-wl-pnl="${r.ticker}"]`);
-            if (pnlNode && r.day_change_value_text) {
-                pnlNode.textContent = r.day_change_value_text;
-                pnlNode.className = 'wl-row-pnl ' +
+            // Mirror the live numbers into the expanded detail drawer.
+            const dirCls = r.direction === 'positive' ? 'positive'
+                         : r.direction === 'negative' ? 'negative' : 'muted';
+            const changeD = listEl.querySelector(`[data-wl-change-d="${r.ticker}"]`);
+            if (changeD) {
+                changeD.textContent = r.change_percent_text || 'N/A';
+                changeD.className = 'wl-stat-val ' + dirCls;
+            }
+            const posvalD = listEl.querySelector(`[data-wl-posval="${r.ticker}"]`);
+            if (posvalD && r.position_value_text) posvalD.textContent = r.position_value_text;
+            const pnlD = listEl.querySelector(`[data-wl-pnl-d="${r.ticker}"]`);
+            if (pnlD && r.day_change_value_text) {
+                pnlD.textContent = r.day_change_value_text;
+                pnlD.className = 'wl-stat-val ' +
                     ((r.day_change_value || 0) >= 0 ? 'positive' : 'negative');
             }
         });
     }
 
-    function setUpdated(stamp) {
-        const t = stamp ? new Date(stamp) : new Date();
-        updatedEl.textContent =
-            `Live · ${t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
+    function setUpdated(isCrypto) {
+        updatedEl.textContent = `Live · ${marketClockLabel(isCrypto)}`;
         liveEl.hidden = false;
     }
 
@@ -3130,7 +3337,9 @@ function wlLogoError(img) {
                 renderedSig = sig;
             }
             applyRowQuotes(summary);
-            setUpdated(data.updated_at);
+            // If any holding is crypto, the list keeps updating after the stock
+            // market closes, so the stamp should stay live rather than freeze.
+            setUpdated((summary.rows || []).some(r => r.is_crypto));
         } catch {
             narrEl.textContent = 'Could not load your watchlist. Try refreshing.';
         } finally {
@@ -3170,12 +3379,35 @@ function wlLogoError(img) {
     });
 
     listEl.addEventListener('click', async (e) => {
+        // Remove button takes priority and must not toggle the drawer.
         const btn = e.target.closest('[data-remove]');
-        if (!btn) return;
-        btn.disabled = true;
-        const data = await postWatchlist('/watchlist/remove', { ticker: btn.dataset.remove });
-        if (data.ok) await loadWatchlist();
-        else btn.disabled = false;
+        if (btn) {
+            btn.disabled = true;
+            const data = await postWatchlist('/watchlist/remove', { ticker: btn.dataset.remove });
+            if (data.ok) await loadWatchlist();
+            else btn.disabled = false;
+            return;
+        }
+
+        // Clicking anywhere else on a row toggles its detail drawer.
+        const row = e.target.closest('.wl-row');
+        if (!row) return;
+        const ticker = row.dataset.ticker;
+        if (row.classList.toggle('expanded')) expandedTickers.add(ticker);
+        else expandedTickers.delete(ticker);
+    });
+
+    clearBtn.addEventListener('click', async () => {
+        if (!confirm('Remove all tickers from your watchlist?')) return;
+        clearError();
+        clearBtn.disabled = true;
+        try {
+            const data = await postWatchlist('/watchlist/clear', {});
+            if (data.ok) await loadWatchlist();
+            else showError(data.error || 'Could not clear the watchlist.');
+        } finally {
+            clearBtn.disabled = false;
+        }
     });
 
     refreshBtn.addEventListener('click', loadWatchlist);
