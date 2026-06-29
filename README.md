@@ -233,7 +233,7 @@ python -m flask --app app run --host=0.0.0.0 --port=5000
 Production-style (same server used in deployment):
 
 ```bash
-gunicorn --bind :8000 --workers 2 --threads 4 --timeout 120 app:app
+gunicorn --bind :8000 --workers 1 --threads 8 --timeout 120 app:app
 ```
 
 Then open `http://127.0.0.1:5000` (dev) or `http://127.0.0.1:8000` (gunicorn).
@@ -247,7 +247,7 @@ Then open `http://127.0.0.1:5000` (dev) or `http://127.0.0.1:8000` (gunicorn).
 The app is deployed to **AWS Elastic Beanstalk** (Python 3.11 on Amazon Linux 2023) and served by **Gunicorn** via the included `Procfile`:
 
 ```text
-web: gunicorn --bind :8000 --workers 2 --threads 4 --timeout 120 app:app
+web: gunicorn --bind :8000 --workers 1 --threads 8 --timeout 120 app:app
 ```
 
 Deployment notes:
