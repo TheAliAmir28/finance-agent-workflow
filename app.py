@@ -5,8 +5,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import re
 import threading
+import time
+import uuid
 import yfinance as yf
 from main import run_analysis_from_request
+from agent_trace import AgentTracer
 from history import clear_history, delete_history_file, load_recent_history
 from watchlist import (
     add_to_watchlist,
@@ -49,6 +52,12 @@ SUMMARY_OPTIONS = [
 SUMMARY_PHRASES = {
     option["value"]: option["phrase"]
     for option in SUMMARY_OPTIONS
+}
+# Human-readable tool names for the live trace feed (mirrors the template).
+TOOL_LABELS = {
+    "planner": "Planner", "data": "Market Data", "metrics": "Analytics",
+    "charts": "Charts", "analyst": "Analyst", "fundamentals": "Fundamentals",
+    "earnings": "Earnings", "news": "News", "compare": "Comparison",
 }
 
 def format_percent(value):
@@ -369,6 +378,50 @@ def build_llm_summary_card(title, text):
         "disclaimer": disclaimer or "Not financial advice.",
     }
 
+def _format_duration(ms):
+    if ms is None:
+        return ""
+    try:
+        ms = float(ms)
+    except (TypeError, ValueError):
+        return ""
+    if ms < 1000:
+        return f"{ms:.0f} ms"
+    return f"{ms / 1000:.2f} s"
+
+
+def build_trace_view(trace):
+    """Shape the raw execution trace for the template: add display-friendly
+    duration labels and a rolled-up status verdict for the trace panel."""
+    if not trace:
+        return None
+
+    events = []
+    for event in trace.get("events", []):
+        view = dict(event)
+        view["duration_text"] = _format_duration(event.get("duration_ms"))
+        events.append(view)
+
+    summary = dict(trace.get("summary", {}))
+    summary["total_text"] = _format_duration(summary.get("total_ms"))
+
+    if summary.get("error"):
+        summary["verdict"] = "errors"
+        summary["verdict_label"] = "Completed with errors"
+    elif summary.get("warn"):
+        summary["verdict"] = "partial"
+        summary["verdict_label"] = "Completed · partial data"
+    else:
+        summary["verdict"] = "clean"
+        summary["verdict_label"] = "All steps nominal"
+
+    return {
+        "events": events,
+        "stages": trace.get("stages", []),
+        "summary": summary,
+    }
+
+
 def fetch_live_quote(ticker):
     symbol = ticker.strip().upper()
     if not symbol:
@@ -654,6 +707,210 @@ def watchlist_clear():
     return jsonify({"ok": True, "items": _watchlist_items_payload(items)})
 
 
+def build_result_context(result):
+    """Convert a completed analysis result into the template's result-derived
+    kwargs (cards, charts, trace). Shared by the synchronous POST path and the
+    finished-job render path so both produce an identical dashboard."""
+    context = {
+        "chart_entries": [],
+        "comparison_chart_path": None,
+        "interactive_chart_entries": [],
+        "interactive_comparison_chart": None,
+        "llm_summaries": [],
+        "metric_cards": [],
+        "report_metric_cards": [],
+        "fundamentals_cards": [],
+        "earnings_cards": [],
+        "analyst_cards": [],
+        "news_cards": [],
+        "comparison_result": None,
+        "trace": None,
+    }
+    if not result:
+        return context
+
+    memory = result.get("memory")
+    tickers = result.get("tickers", [])
+    context["trace"] = build_trace_view(result.get("trace"))
+    if memory is None:
+        return context
+
+    # Collect per-ticker charts, metrics, and research cards
+    for ticker in tickers:
+        is_crypto = is_crypto_symbol(ticker)
+        chart_path = memory.get(f"{ticker}_chart_path")
+        if chart_path:
+            context["chart_entries"].append({"ticker": ticker, "path": chart_path})
+
+        price_data = memory.get(f"{ticker}_data")
+        period = result.get("period", "")
+        metrics = memory.get(f"{ticker}_metrics", {}) or {}
+        analyst_view = memory.get(f"{ticker}_analyst_view") or {}
+        logo_url = analyst_view.get("logo_url") or logo_url_for_ticker(ticker)
+
+        if price_data is not None:
+            context["interactive_chart_entries"].append({
+                "id": f"interactive-chart-{ticker}",
+                "ticker": ticker,
+                "logo_url": logo_url,
+                "figure_json": build_price_chart_json(price_data, ticker, period),
+                "summary": build_chart_summary(price_data),
+            })
+        context["metric_cards"].append({
+            "ticker": ticker,
+            "logo_url": logo_url,
+            "total_return": format_percent(metrics.get("total_return")),
+            "volatility": format_percent(metrics.get("volatility")),
+            "sharpe_ratio": format_number(metrics.get("sharpe_ratio")),
+        })
+        context["report_metric_cards"].append(build_report_metric_card(ticker, metrics, logo_url))
+
+        if not is_crypto:
+            analyst_card = build_analyst_card(analyst_view)
+            if analyst_card:
+                context["analyst_cards"].append(analyst_card)
+
+            fundamentals_card = build_fundamentals_card(
+                memory.get(f"{ticker}_fundamentals") or {}, logo_url
+            )
+            if fundamentals_card:
+                context["fundamentals_cards"].append(fundamentals_card)
+
+            earnings_card = build_earnings_card(
+                memory.get(f"{ticker}_earnings") or {}, logo_url
+            )
+            if earnings_card:
+                context["earnings_cards"].append(earnings_card)
+
+        ticker_news = memory.get(f"{ticker}_news", []) or []
+        context["news_cards"].append({
+            "ticker": ticker,
+            "logo_url": logo_url,
+            "items": ticker_news[:3],
+        })
+
+    # Collect comparison chart if it exists
+    context["comparison_chart_path"] = memory.get("comparison_chart_path")
+    context["comparison_result"] = memory.get("comparison")
+    if len(tickers) == 2:
+        price_data_a = memory.get(f"{tickers[0]}_data")
+        price_data_b = memory.get(f"{tickers[1]}_data")
+        if price_data_a is not None and price_data_b is not None:
+            context["interactive_comparison_chart"] = {
+                "id": "interactive-comparison-chart",
+                "figure_json": build_comparison_chart_json(
+                    price_data_a, price_data_b, tickers[0], tickers[1], result.get("period", ""),
+                ),
+            }
+
+    # Collect optional LLM summaries
+    for ticker in tickers:
+        llm_text = memory.get(f"{ticker}_llm_summary")
+        if llm_text:
+            context["llm_summaries"].append(build_llm_summary_card(f"{ticker} AI Summary", llm_text))
+
+    comparison_llm = memory.get("comparison_llm_summary")
+    if comparison_llm:
+        context["llm_summaries"].append(build_llm_summary_card("Comparison AI Summary", comparison_llm))
+
+    return context
+
+
+# ── Background analysis jobs ──
+# The execution trace streams while a run is in flight: the analysis runs in a
+# background thread, its trace events are buffered here, and the browser polls
+# for them. Job state lives in memory and is pruned by TTL — consistent with
+# the app's single-instance design.
+_jobs = {}
+_jobs_lock = threading.Lock()
+JOB_TTL_SECONDS = 1800
+
+
+def _prune_jobs():
+    cutoff = time.time() - JOB_TTL_SECONDS
+    with _jobs_lock:
+        for job_id in [jid for jid, job in _jobs.items() if job["created_at"] < cutoff]:
+            _jobs.pop(job_id, None)
+
+
+def _append_job_event(job_id, event):
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job is not None:
+            job["events"].append(event)
+
+
+def _run_analysis_job(job_id, analysis_request):
+    # Wire the tracer to stream each step into the job's live event buffer.
+    tracer = AgentTracer(on_record=lambda event: _append_job_event(job_id, event))
+    try:
+        result = run_analysis_from_request(analysis_request, tracer=tracer)
+        with _jobs_lock:
+            job = _jobs.get(job_id)
+            if job is not None:
+                job["result"] = result
+                job["status"] = "done"
+    except Exception as exc:
+        logging.exception("Background analysis job failed")
+        with _jobs_lock:
+            job = _jobs.get(job_id)
+            if job is not None:
+                job["status"] = "error"
+                job["error"] = str(exc)
+
+
+@app.route("/api/analyze/start", methods=["POST"])
+def analyze_start():
+    payload = request.get_json(silent=True) or request.form
+    user_input = (payload.get("user_input") or "").strip()
+    requested_interval = (payload.get("interval") or "").strip()
+    requested_summary = (payload.get("summary_mode") or "").strip()
+
+    if not user_input:
+        return jsonify({"ok": False, "error": "Please enter a request."}), 400
+
+    analysis_request = build_request_with_controls(user_input, requested_interval, requested_summary)
+
+    _prune_jobs()
+    job_id = uuid.uuid4().hex
+    with _jobs_lock:
+        _jobs[job_id] = {
+            "status": "running",
+            "events": [],
+            "result": None,
+            "error": None,
+            "created_at": time.time(),
+            "user_input": user_input,
+            "interval": requested_interval if requested_interval in INTERVAL_PHRASES else "1y",
+            "summary_mode": requested_summary if requested_summary in SUMMARY_PHRASES else "with_summary",
+        }
+
+    threading.Thread(target=_run_analysis_job, args=(job_id, analysis_request), daemon=True).start()
+    return jsonify({"ok": True, "job_id": job_id})
+
+
+@app.route("/api/analyze/status/<job_id>")
+def analyze_status(job_id):
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job is None:
+            return jsonify({"ok": False, "error": "Unknown or expired job."}), 404
+        status = job["status"]
+        error = job.get("error")
+        events = [dict(event) for event in job["events"]]
+
+    for event in events:
+        event["duration_text"] = _format_duration(event.get("duration_ms"))
+        event["tool_label"] = TOOL_LABELS.get(event["tool"], event["tool"])
+
+    payload = {"ok": True, "status": status, "events": events}
+    if status == "done":
+        payload["redirect"] = url_for("index", job=job_id)
+    elif status == "error":
+        payload["error"] = error or "Analysis failed."
+    return jsonify(payload)
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = None
@@ -661,20 +918,10 @@ def index():
     user_input = ""
     selected_interval = "1y"
     selected_summary = "with_summary"
-    chart_entries = []
-    comparison_chart_path = None
-    interactive_chart_entries = []
-    interactive_comparison_chart = None
-    llm_summaries = []
-    metric_cards = []
-    report_metric_cards = []
-    fundamentals_cards = []
-    earnings_cards = []
-    analyst_cards = []
-    news_cards = []
-    comparison_result = None
 
     if request.method == "POST":
+        # Synchronous fallback (used when JS is unavailable; the live-trace flow
+        # uses /api/analyze/start instead).
         user_input = request.form.get("user_input", "").strip()
         requested_interval = request.form.get("interval", "").strip()
         requested_summary = request.form.get("summary_mode", "").strip()
@@ -686,106 +933,33 @@ def index():
         else:
             try:
                 analysis_request = build_request_with_controls(
-                    user_input,
-                    requested_interval,
-                    requested_summary,
+                    user_input, requested_interval, requested_summary,
                 )
                 result = run_analysis_from_request(analysis_request)
-
-                memory = result.get("memory")
-                tickers = result.get("tickers", [])
-
-                if memory is not None:
-                    # Collect per-ticker chart paths
-                    for ticker in tickers:
-                        is_crypto = is_crypto_symbol(ticker)
-                        chart_path = memory.get(f"{ticker}_chart_path")
-                        if chart_path:
-                            chart_entries.append({
-                                "ticker": ticker,
-                                "path": chart_path,
-                            })
-
-                        price_data = memory.get(f"{ticker}_data")
-                        period = result.get("period", "")
-                        metrics = memory.get(f"{ticker}_metrics", {}) or {}
-                        analyst_view = memory.get(f"{ticker}_analyst_view") or {}
-                        logo_url = analyst_view.get("logo_url") or logo_url_for_ticker(ticker)
-
-                        if price_data is not None:
-                            interactive_chart_entries.append({
-                                "id": f"interactive-chart-{ticker}",
-                                "ticker": ticker,
-                                "logo_url": logo_url,
-                                "figure_json": build_price_chart_json(price_data, ticker, period),
-                                "summary": build_chart_summary(price_data),
-                            })
-                        metric_cards.append({
-                            "ticker": ticker,
-                            "logo_url": logo_url,
-                            "total_return": format_percent(metrics.get("total_return")),
-                            "volatility": format_percent(metrics.get("volatility")),
-                            "sharpe_ratio": format_number(metrics.get("sharpe_ratio")),
-                        })
-                        report_metric_cards.append(build_report_metric_card(ticker, metrics, logo_url))
-
-                        if not is_crypto:
-                            analyst_card = build_analyst_card(analyst_view)
-                            if analyst_card:
-                                analyst_cards.append(analyst_card)
-
-                            fundamentals_card = build_fundamentals_card(
-                                memory.get(f"{ticker}_fundamentals") or {},
-                                logo_url,
-                            )
-                            if fundamentals_card:
-                                fundamentals_cards.append(fundamentals_card)
-
-                            earnings_card = build_earnings_card(
-                                memory.get(f"{ticker}_earnings") or {},
-                                logo_url,
-                            )
-                            if earnings_card:
-                                earnings_cards.append(earnings_card)
-
-                        ticker_news = memory.get(f"{ticker}_news", []) or []
-                        news_cards.append({
-                            "ticker": ticker,
-                            "logo_url": logo_url,
-                            "items": ticker_news[:3],
-                        })
-
-                    # Collect comparison chart if it exists
-                    comparison_chart_path = memory.get("comparison_chart_path")
-                    comparison_result = memory.get("comparison")
-                    if len(tickers) == 2:
-                        price_data_a = memory.get(f"{tickers[0]}_data")
-                        price_data_b = memory.get(f"{tickers[1]}_data")
-                        if price_data_a is not None and price_data_b is not None:
-                            interactive_comparison_chart = {
-                                "id": "interactive-comparison-chart",
-                                "figure_json": build_comparison_chart_json(
-                                    price_data_a,
-                                    price_data_b,
-                                    tickers[0],
-                                    tickers[1],
-                                    result.get("period", ""),
-                                ),
-                            }
-
-                    # Collect optional LLM summaries
-                    for ticker in tickers:
-                        llm_text = memory.get(f"{ticker}_llm_summary")
-                        if llm_text:
-                            llm_summaries.append(build_llm_summary_card(f"{ticker} AI Summary", llm_text))
-
-                    comparison_llm = memory.get("comparison_llm_summary")
-                    if comparison_llm:
-                        llm_summaries.append(build_llm_summary_card("Comparison AI Summary", comparison_llm))
-
             except Exception as e:
                 logging.exception("Analysis request failed")
                 error = str(e)
+    else:
+        # A finished background job is rendered by id — the live-trace flow
+        # navigates here once the run completes, reusing the stored result so
+        # the analysis is never run twice.
+        job_id = request.args.get("job", "").strip()
+        if job_id:
+            with _jobs_lock:
+                job = _jobs.get(job_id)
+                job_snapshot = dict(job) if job else None
+            if job_snapshot is None:
+                error = "That analysis has expired. Please run it again."
+            elif job_snapshot["status"] == "error":
+                error = job_snapshot.get("error") or "Analysis failed."
+                user_input = job_snapshot.get("user_input", "")
+            elif job_snapshot["status"] == "done" and job_snapshot.get("result"):
+                result = job_snapshot["result"]
+                user_input = job_snapshot.get("user_input", "")
+                selected_interval = job_snapshot.get("interval", "1y")
+                selected_summary = job_snapshot.get("summary_mode", "with_summary")
+
+    result_context = build_result_context(result)
 
     recent_runs = load_recent_history(limit=5)
     for run in recent_runs:
@@ -801,18 +975,7 @@ def index():
         interval_options=INTERVAL_OPTIONS,
         summary_options=SUMMARY_OPTIONS,
         recent_runs=recent_runs,
-        chart_entries=chart_entries,
-        comparison_chart_path=comparison_chart_path,
-        interactive_chart_entries=interactive_chart_entries,
-        interactive_comparison_chart=interactive_comparison_chart,
-        llm_summaries=llm_summaries,
-        metric_cards=metric_cards,
-        report_metric_cards=report_metric_cards,
-        fundamentals_cards=fundamentals_cards,
-        earnings_cards=earnings_cards,
-        analyst_cards=analyst_cards,
-        news_cards=news_cards,
-        comparison_result=comparison_result,
+        **result_context,
     )
 
 if __name__ == "__main__":

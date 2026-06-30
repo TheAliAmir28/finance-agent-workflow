@@ -1,5 +1,6 @@
 from planner import Planner
 from agent import Agent
+from agent_trace import AgentTracer
 from memory.store import MemoryStore
 from reports.synthesizer import ReportSynthesizer
 from reports.dashboard import build_dashboard
@@ -24,19 +25,44 @@ def parse_args():
     return parser.parse_args()
 
 # This function runs the full pipeline and returns a structured result dictionary
-def run_analysis_from_request(user_input):
+def run_analysis_from_request(user_input, tracer=None):
     # Set up core components
     planner = Planner()
     memory = MemoryStore()
-    agent = Agent(memory)
+    # Shared tracer records every planner/agent step for the execution-trace UI.
+    # A caller (e.g. the background job) may inject one wired to stream live.
+    tracer = tracer or AgentTracer()
+    agent = Agent(memory, tracer)
 
     try:
         # Convert user input into a structured plan
+        plan_started = tracer.now()
         plan = planner.create_plan(user_input)
         tasks = plan["tasks"]
 
         # Store LLM summary mode flag so other parts can use it
         memory.set("use_llm_summary", plan["use_llm_summary"])
+
+        # Record the planning step from the parsed plan
+        planned_tickers = []
+        planned_period = None
+        for task in tasks:
+            ticker = task.get("ticker")
+            if ticker and ticker not in planned_tickers:
+                planned_tickers.append(ticker)
+            if task["task"] == "fetch_data" and planned_period is None:
+                planned_period = task.get("period")
+        ticker_label = ", ".join(planned_tickers) if planned_tickers else "none"
+        summary_label = "on" if plan["use_llm_summary"] else "off"
+        tracer.record(
+            "planner", "Parse request → task plan", "ok",
+            detail=(
+                f"{len(planned_tickers)} ticker(s): {ticker_label} · "
+                f"period {planned_period or 'default'} · AI summary {summary_label} · "
+                f"{len(tasks)} tasks queued"
+            ),
+            duration_ms=tracer.elapsed_ms(plan_started),
+        )
     except ValueError as e:
         raise ValueError(f"Planner error: {e}")
 
@@ -105,6 +131,7 @@ def run_analysis_from_request(user_input):
         "period": period,
         "memory": memory,
         "is_comparison": is_comparison,
+        "trace": tracer.export(),
     }
 
     history_path = save_run_history(user_input, result)

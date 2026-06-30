@@ -804,7 +804,7 @@
 
         .btn-run svg { width: 16px; height: 16px; }
 
-        /* ── Run loading overlay ── */
+        /* ── Run loading overlay (live execution console) ── */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -812,36 +812,86 @@
             z-index: 200;
             background: rgba(5,10,18,0.85);
             backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             align-items: center;
             justify-content: center;
-            flex-direction: column;
-            gap: 20px;
+            padding: 24px;
         }
 
         .loading-overlay.active { display: flex; }
 
-        .loading-spinner {
-            width: 56px;
-            height: 56px;
-            border: 3px solid rgba(255,255,255,0.18);
-            border-top-color: #38BDF8;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .loading-label {
-            color: #D8EEFF;
-            font-size: 16px;
-            font-weight: 700;
+        .loading-console {
+            width: min(620px, 100%);
+            max-height: min(82vh, 720px);
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 24px 70px rgba(0,0,0,0.45), 0 0 0 1px var(--border);
+            overflow: hidden;
+            animation: lc-pop .35s cubic-bezier(.34,1.2,.4,1) both;
+        }
+        @keyframes lc-pop {
+            from { opacity: 0; transform: translateY(14px) scale(.97); }
+            to   { opacity: 1; transform: none; }
         }
 
-        .loading-sub {
-            color: #7AACCC;
-            font-size: 13px;
-            margin-top: -12px;
+        .lc-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 14px; padding: 16px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--shead-bg);
         }
+        .lc-head-left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .lc-live-badge {
+            display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+            padding: 3px 10px; border-radius: 99px;
+            font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px;
+            background: var(--cyan-dim); border: 1px solid var(--cyan-line); color: var(--cyan-bright);
+        }
+        .lc-live-badge.is-complete {
+            background: var(--green-dim); border-color: rgba(16,185,129,0.28); color: var(--green-text);
+        }
+        .lc-live-badge.is-complete .trace-live-dot {
+            background: var(--green-bright); animation: none; box-shadow: 0 0 8px var(--green-dim);
+        }
+        .lc-title { font-size: 12.5px; font-weight: 800; color: var(--text-strong); }
+        .lc-count {
+            font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+            color: var(--text-muted); white-space: nowrap;
+        }
+
+        .lc-pipeline { padding: 16px 18px 14px; margin: 0; }
+
+        .lc-log {
+            padding: 4px 18px;
+            overflow-y: auto;
+            flex: 1 1 auto;
+        }
+        .lc-log .trace-row:first-child .trace-rail { top: 16px; }
+
+        .lc-foot {
+            display: flex; align-items: center; gap: 10px;
+            padding: 13px 18px;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 12px; font-weight: 600; color: var(--text-muted);
+        }
+        .lc-foot-spinner {
+            width: 14px; height: 14px; flex-shrink: 0;
+            border: 2px solid var(--border-strong); border-top-color: var(--cyan);
+            border-radius: 50%; animation: spin .7s linear infinite;
+        }
+        .lc-foot.is-complete .lc-foot-spinner {
+            border: 2px solid transparent; animation: none;
+            background: var(--green-text);
+            -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M20 6 9 17l-5-5'/></svg>") center/contain no-repeat;
+            mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M20 6 9 17l-5-5'/></svg>") center/contain no-repeat;
+            border-radius: 0;
+        }
+        .lc-foot.is-complete { color: var(--green-text); }
 
         /* ── Section panels ── */
         .section {
@@ -906,6 +956,240 @@
 
         .section-body {
             padding: 22px;
+        }
+
+        /* ── Agent execution trace ── */
+        .trace-head-meta { display: flex; align-items: center; gap: 10px; }
+
+        /* Collapse / expand */
+        .trace-toggle {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 11px; border-radius: 99px; cursor: pointer;
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 11.5px; font-weight: 800; letter-spacing: .3px;
+            text-transform: uppercase;
+            transition: color .2s ease, border-color .2s ease, background .2s ease;
+        }
+        .trace-toggle:hover {
+            color: var(--cyan); border-color: var(--cyan-line); background: var(--cyan-dim);
+        }
+        .trace-toggle-chevron { width: 14px; height: 14px; transition: transform .32s cubic-bezier(.4,0,.2,1); }
+        #agent-trace:not(.is-collapsed) .trace-toggle-chevron { transform: rotate(180deg); }
+
+        /* Only the step log collapses — the pipeline strip and summary stats
+           stay visible, so the collapsed card ends cleanly right after the
+           stat tiles. Grid-rows animates the real content height, any length. */
+        .trace-collapse {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows .42s cubic-bezier(.4,0,.2,1);
+        }
+        #agent-trace.is-collapsed .trace-collapse { grid-template-rows: 0fr; }
+        .trace-collapse-inner {
+            overflow: hidden;
+            min-height: 0;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .trace-live-badge { gap: 6px; }
+        .trace-live-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--cyan-bright);
+            box-shadow: 0 0 0 0 var(--cyan-glow);
+            animation: trace-pulse 1.4s ease-out infinite;
+        }
+        .trace-head-meta.is-complete .trace-live-dot {
+            background: var(--green-bright); animation: none;
+            box-shadow: 0 0 8px var(--green-dim);
+        }
+        @keyframes trace-pulse {
+            0%   { box-shadow: 0 0 0 0 var(--cyan-glow); }
+            70%  { box-shadow: 0 0 0 7px rgba(56,189,248,0); }
+            100% { box-shadow: 0 0 0 0 rgba(56,189,248,0); }
+        }
+
+        /* Pipeline strip: Planner -> Market Data -> Analytics -> ... */
+        .trace-pipeline {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            padding: 4px 2px 20px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .trace-pipeline::-webkit-scrollbar { display: none; }
+        .trace-stage {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 9px; flex: 0 0 auto; min-width: 78px; text-align: center;
+        }
+        .trace-stage-node {
+            width: 38px; height: 38px; border-radius: 11px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-dim);
+            transition: all .45s cubic-bezier(.4,0,.2,1);
+        }
+        .trace-stage-node svg { width: 17px; height: 17px; }
+        .trace-stage.is-lit .trace-stage-node {
+            background: var(--cyan-dim);
+            border-color: var(--cyan);
+            color: var(--cyan);
+            box-shadow: 0 0 0 4px var(--cyan-dim), 0 6px 18px var(--cyan-glow);
+            transform: translateY(-2px);
+        }
+        .trace-stage-label {
+            font-size: 10.5px; font-weight: 800; letter-spacing: .3px;
+            text-transform: uppercase; color: var(--text-dim);
+            transition: color .45s ease;
+        }
+        .trace-stage.is-lit .trace-stage-label { color: var(--text-strong); }
+        .trace-stage-link {
+            flex: 1 1 auto; height: 2px; min-width: 18px; margin-top: 18px;
+            border-radius: 2px; position: relative; overflow: hidden;
+            background: var(--border-subtle);
+        }
+        .trace-stage-link::after {
+            content: ""; position: absolute; inset: 0; width: 0%;
+            background: linear-gradient(90deg, var(--cyan), var(--cyan-bright));
+            transition: width .5s ease;
+        }
+        .trace-stage-link.is-lit::after { width: 100%; }
+
+        /* Summary stat tiles */
+        .trace-stats {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .trace-stat {
+            padding: 12px 14px; border-radius: var(--radius);
+            background: var(--surface); border: 1px solid var(--border-subtle);
+        }
+        .trace-stat-val {
+            display: block; font-family: var(--font-mono);
+            font-size: 20px; font-weight: 700; color: var(--text-strong);
+            line-height: 1.1;
+        }
+        .trace-stat-val.is-clean   { color: var(--green-text); }
+        .trace-stat-val.is-partial { color: var(--amber); }
+        .trace-stat-val.is-errors  { color: var(--rose-text); }
+        .trace-stat-key {
+            display: block; margin-top: 4px; font-size: 10.5px; font-weight: 800;
+            letter-spacing: .4px; text-transform: uppercase; color: var(--text-dim);
+        }
+
+        /* The step log */
+        .trace-log { display: flex; flex-direction: column; }
+        .trace-row {
+            display: grid;
+            grid-template-columns: 22px 34px 1fr auto;
+            align-items: center; gap: 13px;
+            padding: 11px 0;
+            opacity: 0; transform: translateY(10px); filter: blur(3px);
+        }
+        .trace-row.is-done {
+            opacity: 1; transform: none; filter: none;
+            transition: opacity .4s ease, transform .4s ease, filter .4s ease;
+        }
+        .trace-row.is-active[data-status] .trace-node {
+            background: var(--cyan); border-color: var(--cyan);
+            box-shadow: 0 0 0 5px var(--cyan-dim);
+        }
+
+        /* Timeline gutter */
+        .trace-gutter {
+            position: relative; align-self: stretch;
+            display: flex; justify-content: center;
+        }
+        .trace-node {
+            position: relative; z-index: 2; margin-top: 5px;
+            width: 11px; height: 11px; border-radius: 50%;
+            background: var(--bg-2); border: 2px solid var(--text-dim);
+            transition: all .35s ease;
+        }
+        .trace-rail {
+            position: absolute; top: 16px; left: 50%; width: 2px; height: calc(100% + 11px);
+            transform: translateX(-50%);
+            background: var(--border-subtle);
+        }
+        .trace-row:last-child .trace-rail { display: none; }
+        .trace-row[data-status="ok"]    .trace-node { border-color: var(--green); background: var(--green); }
+        .trace-row[data-status="warn"]  .trace-node { border-color: var(--amber); background: var(--amber); }
+        .trace-row[data-status="skip"]  .trace-node { border-color: var(--text-dim); background: var(--bg-2); }
+        .trace-row[data-status="error"] .trace-node { border-color: var(--rose); background: var(--rose); }
+        .trace-row.is-active .trace-rail::after {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg, var(--cyan), transparent);
+            animation: trace-rail-flow .6s ease;
+        }
+        @keyframes trace-rail-flow { from { opacity: .9; } to { opacity: 0; } }
+
+        /* Tool icon chip */
+        .trace-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--surface); border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+        }
+        .trace-icon svg { width: 16px; height: 16px; }
+        .trace-icon.tool-planner      { color: var(--purple); background: var(--purple-dim); border-color: var(--badge-purple-bdr); }
+        .trace-icon.tool-data,
+        .trace-icon.tool-charts       { color: var(--cyan); background: var(--cyan-dim); border-color: var(--cyan-line); }
+        .trace-icon.tool-metrics      { color: var(--cyan-bright); background: var(--cyan-dim); border-color: var(--cyan-line); }
+        .trace-icon.tool-analyst      { color: var(--purple); background: var(--purple-dim); border-color: var(--badge-purple-bdr); }
+        .trace-icon.tool-fundamentals { color: var(--green-text); background: var(--green-dim); border-color: rgba(16,185,129,0.28); }
+        .trace-icon.tool-earnings     { color: var(--amber); background: var(--amber-dim); border-color: rgba(245,158,11,0.28); }
+        .trace-icon.tool-news         { color: var(--cyan); background: var(--cyan-dim); border-color: var(--cyan-line); }
+        .trace-icon.tool-compare      { color: var(--purple); background: var(--purple-dim); border-color: var(--badge-purple-bdr); }
+
+        /* Main text column */
+        .trace-main { min-width: 0; }
+        .trace-line {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 3px;
+        }
+        .trace-label { font-size: 13.5px; font-weight: 700; color: var(--text-strong); }
+        .trace-ticker {
+            font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+            padding: 1px 7px; border-radius: 5px;
+            background: var(--cyan-dim); color: var(--cyan);
+            border: 1px solid var(--cyan-line);
+        }
+        .trace-tool-tag {
+            font-size: 9.5px; font-weight: 800; letter-spacing: .4px;
+            text-transform: uppercase; color: var(--text-dim);
+        }
+        .trace-detail {
+            font-family: var(--font-mono); font-size: 11.5px;
+            color: var(--text-muted); line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        /* Right-side meta */
+        .trace-meta { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+        .trace-dur {
+            font-family: var(--font-mono); font-size: 11px;
+            color: var(--text-dim); font-weight: 600;
+        }
+        .trace-status {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+        }
+        .trace-status svg { width: 12px; height: 12px; }
+        .trace-status-ok    { color: var(--green-text); background: var(--green-dim); }
+        .trace-status-warn  { color: var(--amber);      background: var(--amber-dim); }
+        .trace-status-skip  { color: var(--text-dim);   background: var(--border-subtle); }
+        .trace-status-error { color: var(--rose-text);  background: var(--rose-dim); }
+
+        @media (max-width: 640px) {
+            .trace-stats { grid-template-columns: repeat(2, 1fr); }
+            .trace-row { grid-template-columns: 18px 30px 1fr; }
+            .trace-meta { grid-column: 2 / -1; padding-left: 43px; justify-content: flex-start; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .trace-row { opacity: 1; transform: none; filter: none; }
         }
 
         /* ── Badges / pills ── */
@@ -2332,10 +2616,69 @@
 <body>
 
 <!-- ── Loading overlay ── -->
+{# ── Icon helpers for the execution trace (shared by the live console and the
+   results panel, so they must be defined before both) ── #}
+{% macro trace_tool_icon(tool) -%}
+{%- set svg = {
+    'planner': '<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+    'data': '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+    'metrics': '<path d="M3 3v18h18"/><rect x="6" y="11" width="3" height="6" rx="1"/><rect x="11" y="7" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="13" rx="1"/>',
+    'charts': '<path d="M3 3v18h18"/><path d="m6 14 4-4 3 3 5-6"/>',
+    'analyst': '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+    'fundamentals': '<path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M15 9h3a1 1 0 0 1 1 1v11"/><path d="M3 21h18"/><path d="M8 8h2M8 12h2M8 16h2"/>',
+    'earnings': '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M12 12.5v4M10.6 13.5h2.8M10.6 16h2.8"/>',
+    'news': '<path d="M4 5h13v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M17 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2"/><path d="M7 8h7M7 12h7M7 16h4"/>',
+    'compare': '<path d="M12 4v16"/><path d="M7 7h10"/><path d="M5 7 2.5 12h5z"/><path d="M19 7l-2.5 5h5z"/>'
+} -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ svg.get(tool, '<circle cx="12" cy="12" r="3"/>') | safe }}</svg>
+{%- endmacro %}
+
+{% macro trace_stage_icon(stage) -%}
+{%- set svg = {
+    'Planner': '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v3a3 3 0 0 0 3 3h6"/>',
+    'Market Data': '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+    'Analytics': '<path d="M3 3v18h18"/><path d="m6 14 4-4 3 3 5-6"/>',
+    'Enrichment': '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+    'Synthesis': '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'
+} -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ svg.get(stage, '') | safe }}</svg>
+{%- endmacro %}
+
+{% macro trace_status_icon(status) -%}
+{%- set svg = {
+    'ok': '<path d="M20 6 9 17l-5-5"/>',
+    'warn': '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+    'skip': '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+    'error': '<path d="M18 6 6 18M6 6l12 12"/>'
+} -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ svg.get(status, '') | safe }}</svg>
+{%- endmacro %}
+
 <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-label">Running analysis…</div>
-    <div class="loading-sub">Fetching market data and generating report</div>
+    <div class="loading-console" id="loadingConsole">
+        <div class="lc-head">
+            <div class="lc-head-left">
+                <span class="lc-live-badge" id="lcBadge"><span class="trace-live-dot"></span><span id="lcStatus">Running analysis</span></span>
+                <span class="lc-title">Agent Execution · Live</span>
+            </div>
+            <span class="lc-count" id="lcCount">0 steps</span>
+        </div>
+        <div class="trace-pipeline lc-pipeline" id="lcPipeline">
+            {% set lc_stages = ['Planner', 'Market Data', 'Analytics', 'Enrichment', 'Synthesis'] %}
+            {% for stage in lc_stages %}
+            <div class="trace-stage" data-stage="{{ stage }}">
+                <div class="trace-stage-node">{{ trace_stage_icon(stage) }}</div>
+                <div class="trace-stage-label">{{ stage }}</div>
+            </div>
+            {% if not loop.last %}<div class="trace-stage-link" data-link-after="{{ stage }}"></div>{% endif %}
+            {% endfor %}
+        </div>
+        <div class="trace-log lc-log" id="loadingTraceLog"></div>
+        <div class="lc-foot" id="lcFoot">
+            <span class="lc-foot-spinner"></span>
+            <span id="lcFootText">Planning the request and dispatching tools…</span>
+        </div>
+    </div>
 </div>
 
 <!-- ── Top navigation bar ── -->
@@ -2419,6 +2762,7 @@
     <aside class="sidenav" aria-label="Page navigation">
         <div class="sidenav-label">Navigation</div>
         <nav class="sidenav-links">
+            {% if trace %}<a class="sidenav-link" href="#agent-trace">Trace</a>{% endif %}
             {% if metric_cards %}<a class="sidenav-link" href="#metrics-overview">Metrics</a>{% endif %}
             {% if fundamentals_cards %}<a class="sidenav-link" href="#company-fundamentals">Fundamentals</a>{% endif %}
             {% if earnings_cards %}<a class="sidenav-link" href="#earnings">Earnings</a>{% endif %}
@@ -2488,9 +2832,97 @@
 
         {% if result %}
 
+        {% set tool_labels = {
+            'planner': 'Planner', 'data': 'Market Data', 'metrics': 'Analytics',
+            'charts': 'Charts', 'analyst': 'Analyst', 'fundamentals': 'Fundamentals',
+            'earnings': 'Earnings', 'news': 'News', 'compare': 'Comparison'
+        } %}
+
+        <!-- ── Agent Execution Trace ── -->
+        {% if trace %}
+        <section class="section is-collapsed" id="agent-trace" data-auto-scroll="true">
+            <div class="section-head">
+                <div class="section-head-left">
+                    <div class="section-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="section-title">Agent Execution Trace</h2>
+                        <div class="section-subtitle">Live replay of the planner → agent → tools pipeline</div>
+                    </div>
+                </div>
+                <div class="trace-head-meta" id="traceHeadMeta">
+                    <span class="badge badge-cyan trace-live-badge"><span class="trace-live-dot"></span><span id="traceLiveLabel">Replay</span></span>
+                    <button type="button" class="trace-toggle" id="traceToggle" aria-expanded="false" aria-controls="traceBody">
+                        <span class="trace-toggle-label">Expand</span>
+                        <svg class="trace-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="trace-pipeline" id="tracePipeline">
+                    {% for stage in trace.stages %}
+                    <div class="trace-stage" data-stage="{{ stage }}">
+                        <div class="trace-stage-node">{{ trace_stage_icon(stage) }}</div>
+                        <div class="trace-stage-label">{{ stage }}</div>
+                    </div>
+                    {% if not loop.last %}<div class="trace-stage-link" data-link-after="{{ stage }}"></div>{% endif %}
+                    {% endfor %}
+                </div>
+
+                <div class="trace-stats">
+                    <div class="trace-stat">
+                        <span class="trace-stat-val">{{ trace.summary.step_count }}</span>
+                        <span class="trace-stat-key">Steps</span>
+                    </div>
+                    <div class="trace-stat">
+                        <span class="trace-stat-val">{{ trace.summary.tool_count }}</span>
+                        <span class="trace-stat-key">Tools used</span>
+                    </div>
+                    <div class="trace-stat">
+                        <span class="trace-stat-val">{{ trace.summary.total_text }}</span>
+                        <span class="trace-stat-key">Compute time</span>
+                    </div>
+                    <div class="trace-stat">
+                        <span class="trace-stat-val is-{{ trace.summary.verdict }}">{{ trace.summary.ok }}/{{ trace.summary.step_count }}</span>
+                        <span class="trace-stat-key">{{ trace.summary.verdict_label }}</span>
+                    </div>
+                </div>
+
+                <div class="trace-collapse" id="traceBody">
+                  <div class="trace-collapse-inner">
+                    <div class="trace-log" id="traceLog">
+                    {% for event in trace.events %}
+                    <div class="trace-row" data-status="{{ event.status }}" data-stage="{{ event.stage }}" data-dur="{{ event.duration_ms or 0 }}">
+                        <div class="trace-gutter">
+                            <span class="trace-rail"></span>
+                            <span class="trace-node"></span>
+                        </div>
+                        <div class="trace-icon tool-{{ event.tool }}">{{ trace_tool_icon(event.tool) }}</div>
+                        <div class="trace-main">
+                            <div class="trace-line">
+                                <span class="trace-label">{{ event.label }}</span>
+                                {% if event.ticker %}<span class="trace-ticker">{{ event.ticker }}</span>{% endif %}
+                                <span class="trace-tool-tag">{{ tool_labels.get(event.tool, event.tool) }}</span>
+                            </div>
+                            <div class="trace-detail">{{ event.detail }}</div>
+                        </div>
+                        <div class="trace-meta">
+                            {% if event.duration_text %}<span class="trace-dur">{{ event.duration_text }}</span>{% endif %}
+                            <span class="trace-status trace-status-{{ event.status }}">{{ trace_status_icon(event.status) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    </div>
+                  </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
         <!-- ── Metrics Overview ── -->
         {% if metric_cards %}
-        <section class="section" id="metrics-overview" data-auto-scroll="true">
+        <section class="section" id="metrics-overview">
             <div class="section-head">
                 <div class="section-head-left">
                     <div class="section-icon">
@@ -3022,14 +3454,199 @@ const form = $('#analysisForm');
 const runBtn = $('#runButton');
 const overlay = $('#loadingOverlay');
 
-if (form) {
-    form.addEventListener('submit', () => {
-        if (overlay) overlay.classList.add('active');
-        if (runBtn) {
-            runBtn.disabled = true;
-            runBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Running…`;
+/* ── Live execution console: stream the agent trace while the run is in flight,
+   then navigate to the finished dashboard. Falls back to a plain POST if the
+   browser can't reach the streaming endpoints. ── */
+const TRACE_TOOL_ICONS = {
+    planner: '<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+    data: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+    metrics: '<path d="M3 3v18h18"/><rect x="6" y="11" width="3" height="6" rx="1"/><rect x="11" y="7" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="13" rx="1"/>',
+    charts: '<path d="M3 3v18h18"/><path d="m6 14 4-4 3 3 5-6"/>',
+    analyst: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+    fundamentals: '<path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M15 9h3a1 1 0 0 1 1 1v11"/><path d="M3 21h18"/><path d="M8 8h2M8 12h2M8 16h2"/>',
+    earnings: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M12 12.5v4M10.6 13.5h2.8M10.6 16h2.8"/>',
+    news: '<path d="M4 5h13v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M17 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2"/><path d="M7 8h7M7 12h7M7 16h4"/>',
+    compare: '<path d="M12 4v16"/><path d="M7 7h10"/><path d="M5 7 2.5 12h5z"/><path d="M19 7l-2.5 5h5z"/>'
+};
+const TRACE_STATUS_ICONS = {
+    ok: '<path d="M20 6 9 17l-5-5"/>',
+    warn: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+    skip: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+    error: '<path d="M18 6 6 18M6 6l12 12"/>'
+};
+function traceSvg(inner, sw) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 2}" stroke-linecap="round" stroke-linejoin="round">${inner || ''}</svg>`;
+}
+function traceEscape(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+function buildTraceRow(ev) {
+    const row = document.createElement('div');
+    row.className = 'trace-row';
+    row.dataset.status = ev.status;
+    row.dataset.stage = ev.stage || '';
+    const ticker = ev.ticker ? `<span class="trace-ticker">${traceEscape(ev.ticker)}</span>` : '';
+    const dur = ev.duration_text ? `<span class="trace-dur">${traceEscape(ev.duration_text)}</span>` : '';
+    row.innerHTML =
+        '<div class="trace-gutter"><span class="trace-rail"></span><span class="trace-node"></span></div>' +
+        `<div class="trace-icon tool-${traceEscape(ev.tool)}">${traceSvg(TRACE_TOOL_ICONS[ev.tool], 2)}</div>` +
+        '<div class="trace-main"><div class="trace-line">' +
+            `<span class="trace-label">${traceEscape(ev.label)}</span>${ticker}` +
+            `<span class="trace-tool-tag">${traceEscape(ev.tool_label || ev.tool)}</span></div>` +
+            `<div class="trace-detail">${traceEscape(ev.detail)}</div></div>` +
+        `<div class="trace-meta">${dur}` +
+            `<span class="trace-status trace-status-${traceEscape(ev.status)}">${traceSvg(TRACE_STATUS_ICONS[ev.status], 2.4)}</span></div>`;
+    return row;
+}
+function lightPipeline(container, stage) {
+    if (!container || !stage) return;
+    const node = Array.from(container.querySelectorAll('.trace-stage')).find(n => n.dataset.stage === stage);
+    if (node) node.classList.add('is-lit');
+    container.querySelectorAll('.trace-stage-link').forEach(link => {
+        const prev = link.previousElementSibling, next = link.nextElementSibling;
+        if (prev && next && prev.classList.contains('is-lit') && next.classList.contains('is-lit')) {
+            link.classList.add('is-lit');
         }
     });
+}
+
+/* Smooth left-to-right pipeline sweep: each stage lights in turn and pushes a
+   glow down its outgoing connector toward the next stage, so the energy reads
+   as flowing through Planner → Market Data → Analytics → … → Synthesis.
+   opts.onlyNew lights already-lit stages instantly (used to finish a run whose
+   earlier stages lit live), animating just the remaining ones. */
+function cascadePipeline(container, opts) {
+    if (!container) return 0;
+    opts = opts || {};
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const step = opts.step || 230;
+    const stages = Array.from(container.querySelectorAll('.trace-stage'));
+
+    function litLinkAfter(node) {
+        const out = node.nextElementSibling;
+        if (out && out.classList && out.classList.contains('trace-stage-link')) out.classList.add('is-lit');
+    }
+
+    if (reduced) {
+        stages.forEach(node => { node.classList.add('is-lit'); litLinkAfter(node); });
+        if (opts.onDone) opts.onDone();
+        return 0;
+    }
+
+    let order = 0;
+    stages.forEach(node => {
+        if (opts.onlyNew && node.classList.contains('is-lit')) {
+            litLinkAfter(node);
+            return;
+        }
+        setTimeout(() => {
+            node.classList.add('is-lit');
+            litLinkAfter(node);
+        }, order * step);
+        order += 1;
+    });
+
+    const total = order * step;
+    if (opts.onDone) setTimeout(opts.onDone, total + 150);
+    return total;
+}
+
+function runLiveAnalysis() {
+    const log      = document.getElementById('loadingTraceLog');
+    const pipeline = document.getElementById('lcPipeline');
+    const countEl  = document.getElementById('lcCount');
+    const statusEl = document.getElementById('lcStatus');
+    const badgeEl  = document.getElementById('lcBadge');
+    const footEl   = document.getElementById('lcFoot');
+    const footText = document.getElementById('lcFootText');
+    if (log) log.innerHTML = '';
+    let seen = 0;
+
+    function appendNew(events) {
+        for (let k = seen; k < events.length; k++) {
+            const ev = events[k];
+            const row = buildTraceRow(ev);
+            if (log) log.appendChild(row);
+            requestAnimationFrame(() => {
+                row.classList.add('is-done', 'is-active');
+                if (log) log.scrollTop = log.scrollHeight;
+                setTimeout(() => row.classList.remove('is-active'), 600);
+            });
+            lightPipeline(pipeline, ev.stage);
+            if (footText && ev.label) {
+                footText.textContent = ev.label + (ev.ticker ? ' · ' + ev.ticker : '') + '…';
+            }
+        }
+        seen = events.length;
+        if (countEl) countEl.textContent = seen + (seen === 1 ? ' step' : ' steps');
+    }
+    function completeLive(onDone) {
+        if (statusEl) statusEl.textContent = 'Complete';
+        if (badgeEl)  badgeEl.classList.add('is-complete');
+        if (footEl)   footEl.classList.add('is-complete');
+        if (footText) footText.textContent = 'Analysis complete — opening your dashboard…';
+        // Finish the pipeline left-to-right: stages lit live stay lit, and any
+        // remaining stage (e.g. Synthesis) lights in sequence to seal the run.
+        cascadePipeline(pipeline, {
+            onlyNew: true,
+            step: 200,
+            onDone: () => { if (onDone) setTimeout(onDone, 480); },
+        });
+    }
+    function liveError(message) {
+        if (statusEl) statusEl.textContent = 'Error';
+        if (badgeEl)  badgeEl.classList.remove('is-complete');
+        if (footText) footText.textContent = (message || 'Something went wrong.') + ' Reloading…';
+        setTimeout(fallbackSubmit, 1400);
+    }
+    function fallbackSubmit() {
+        // form.submit() bypasses our submit handler, running the synchronous path.
+        form.submit();
+    }
+    function pollJob(jobId) {
+        const tick = () => {
+            fetch('/api/analyze/status/' + jobId)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.ok) { liveError(data.error || 'Lost track of the run.'); return; }
+                    appendNew(data.events || []);
+                    if (data.status === 'done') {
+                        sessionStorage.setItem('traceLivePlayed', jobId);
+                        completeLive(() => { window.location = data.redirect || '/'; });
+                    } else if (data.status === 'error') {
+                        liveError(data.error || 'Analysis failed.');
+                    } else {
+                        setTimeout(tick, 400);
+                    }
+                })
+                .catch(() => setTimeout(tick, 700));
+        };
+        tick();
+    }
+
+    fetch('/api/analyze/start', { method: 'POST', body: new FormData(form) })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) { liveError(data.error || 'Could not start analysis.'); return; }
+            pollJob(data.job_id);
+        })
+        .catch(fallbackSubmit);
+}
+
+function onAnalysisSubmit(e) {
+    e.preventDefault();
+    if (overlay) overlay.classList.add('active');
+    if (runBtn) {
+        runBtn.disabled = true;
+        runBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Running…`;
+    }
+    runLiveAnalysis();
+}
+
+if (form) {
+    form.addEventListener('submit', onAnalysisSubmit);
 }
 
 /* ── Auto-scroll to results ── */
@@ -3037,6 +3654,72 @@ const autoScroll = $('[data-auto-scroll="true"]');
 if (autoScroll) {
     requestAnimationFrame(() => autoScroll.scrollIntoView({ block: 'start' }));
 }
+
+/* ── Agent execution trace panel (collapsed by default).
+   The recorded steps replay as a live sequence on first expand — each row's
+   dwell time scaled from its real measured duration. A run just watched live
+   (or reduced-motion) is settled instantly instead. ── */
+(function () {
+    const section = document.getElementById('agent-trace');
+    const log = document.getElementById('traceLog');
+    if (!section || !log) return;
+    const rows = Array.from(log.querySelectorAll('.trace-row'));
+    if (!rows.length) return;
+
+    const pipeline    = document.getElementById('tracePipeline');
+    const headMeta    = document.getElementById('traceHeadMeta');
+    const liveLabel   = document.getElementById('traceLiveLabel');
+    const toggle      = document.getElementById('traceToggle');
+    const toggleLabel = toggle ? toggle.querySelector('.trace-toggle-label') : null;
+
+    function completeHead() {
+        if (headMeta)  headMeta.classList.add('is-complete');
+        if (liveLabel) liveLabel.textContent = 'Complete';
+    }
+    function settleRows() {
+        rows.forEach(r => r.classList.add('is-done'));
+    }
+    function animateRows() {
+        if (liveLabel) liveLabel.textContent = 'Replaying';
+        let i = 0;
+        (function step() {
+            if (i >= rows.length) { completeHead(); return; }
+            const row = rows[i];
+            const dur = Number(row.dataset.dur) || 0;
+            const hold = Math.min(460, Math.max(120, dur * 0.3));
+            row.classList.add('is-done', 'is-active');
+            setTimeout(() => { row.classList.remove('is-active'); i += 1; step(); }, hold);
+        })();
+    }
+
+    const jobId = new URLSearchParams(location.search).get('job');
+    const justPlayed = jobId && sessionStorage.getItem('traceLivePlayed') === jobId;
+    if (justPlayed) sessionStorage.removeItem('traceLivePlayed');
+    const settleOnly = justPlayed || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Signature flourish: sweep the (always-visible) pipeline strip
+    // left-to-right when the dashboard loads after a run. The small delay lets
+    // the section scroll into view first.
+    setTimeout(() => cascadePipeline(pipeline, { step: 260 }), 300);
+
+    // Rows live inside the collapsed region. Settle them instantly if this run
+    // was just watched live (or reduced-motion); otherwise replay them the
+    // first time the panel is expanded so the user actually sees it run.
+    if (settleOnly) { settleRows(); completeHead(); }
+    let played = settleOnly;
+
+    function setCollapsed(collapsed) {
+        section.classList.toggle('is-collapsed', collapsed);
+        if (toggle) toggle.setAttribute('aria-expanded', String(!collapsed));
+        if (toggleLabel) toggleLabel.textContent = collapsed ? 'Expand' : 'Collapse';
+        if (!collapsed && !played) { played = true; animateRows(); }
+    }
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            setCollapsed(!section.classList.contains('is-collapsed'));
+        });
+    }
+})();
 
 /* ── Live price updates ── */
 const livePriceNodes  = $$('[data-live-price]');
