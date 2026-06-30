@@ -11,7 +11,7 @@
 [![Plotly](https://img.shields.io/badge/Plotly-Interactive_Charts-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-AI_Summaries-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/)
 
-**[▶ Live Demo](http://finance-agent-env.eba-ugycpapf.us-east-1.elasticbeanstalk.com)** — running on AWS Elastic Beanstalk
+**[▶ Live Demo](https://askfinagent.com)** — running on AWS Elastic Beanstalk
 
 Plan analyses from natural language, compare performance, inspect live prices, track a watchlist, review fundamentals, scan earnings, read market news, and generate analyst-style reports — all from one request.
 
