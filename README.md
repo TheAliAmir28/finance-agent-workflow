@@ -350,7 +350,6 @@ It is more than a chart viewer: it is a small research system that plans work, f
 
 - Export reports to PDF.
 - Add persistent database-backed history and watchlist storage.
-- Add a custom domain and HTTPS to the deployment.
 - Add authentication for hosted deployments.
 - Add more data providers for richer earnings and analyst coverage.
 - Add automated tests and CI.
