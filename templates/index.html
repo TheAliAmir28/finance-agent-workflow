@@ -622,13 +622,10 @@
             font-size: 15px;
             line-height: 1.65;
             margin: 0 0 28px;
-            white-space: nowrap;
-        }
-
-        /* Let the sub-headline wrap again on narrower viewports so it
-           never overflows the hero on small screens. */
-        @media (max-width: 720px) {
-            .hero-sub { white-space: normal; }
+            /* No forced single line: let the hero's width drive wrapping,
+               so the sub-headline stays on one line on wide displays and
+               flows onto additional lines (instead of being clipped by the
+               hero's overflow:hidden) on smaller screens. */
         }
 
         /* ── Analysis form ── */
@@ -903,6 +900,22 @@
             -webkit-backdrop-filter: var(--section-blur);
             box-shadow: var(--section-shadow);
             animation: fade-up 400ms ease both;
+        }
+
+        /* The inner content cards across every section share the same hover
+           glow the metric cards use — border brighten + card-hover shadow —
+           so each card lights up on hover rather than the outer panel. */
+        .fundamentals-card:hover,
+        .earnings-card:hover,
+        .report-sidebar:hover,
+        .report-metrics-panel:hover,
+        .chart-card:hover,
+        .chart-card.featured:hover,   /* extra class beats featured's resting shadow */
+        .analyst-card:hover,
+        .insight-card:hover,
+        .news-group:hover {
+            border-color: var(--border);
+            box-shadow: var(--card-hover-sh);
         }
 
         @keyframes fade-up {
@@ -1425,6 +1438,7 @@
             border: 1px solid var(--border-subtle);
             background: var(--surface);
             padding: 18px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .fundamentals-card-header {
@@ -1485,6 +1499,7 @@
             border: 1px solid var(--border-subtle);
             background: var(--surface);
             padding: 18px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .earnings-card + .earnings-card { margin-top: 14px; }
@@ -1557,6 +1572,7 @@
             border: 1px solid var(--border-subtle);
             background: var(--surface);
             padding: 18px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .report-kicker {
@@ -1616,6 +1632,7 @@
             border: 1px solid var(--border-subtle);
             background: var(--surface);
             padding: 18px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .report-metric-groups {
@@ -1682,6 +1699,7 @@
             border: 1px solid var(--border-subtle);
             background: var(--surface);
             padding: 16px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .chart-card.featured {
@@ -1776,6 +1794,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .analyst-card-top {
@@ -1898,6 +1917,7 @@
             padding: 20px;
             position: relative;
             overflow: hidden;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .insight-card::before {
@@ -1983,6 +2003,7 @@
             border: 1px solid var(--border-subtle);
             background: var(--surface);
             padding: 16px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
         }
 
         .news-list { display: flex; flex-direction: column; gap: 10px; }
@@ -1994,12 +2015,13 @@
             background: var(--panel-2);
             border: 1px solid var(--border-subtle);
             text-decoration: none;
-            transition: border-color 200ms ease, background 200ms ease;
+            transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
         }
 
         .news-item:hover {
             border-color: var(--border);
             background: var(--surface-hover);
+            box-shadow: var(--card-hover-sh);
         }
 
         .news-item-title {
@@ -4122,19 +4144,31 @@ function wlLogoError(img) {
             numCopies++;
         }
 
-        // Width of one complete set of items — this is the seamless cycle length.
-        // Scrolling by exactly oneSetW brings us back to visually identical content
-        // because every copy is identical.
-        const oneSetW = track.scrollWidth / numCopies;
-        const SPEED   = 42; // px/s
+        const SPEED = 42; // px/s
 
         let offset = 0;
         let lastTs = null;
 
+        // Width of one complete set of items = the left edge of the first item
+        // of the second copy minus the left edge of the first item. We measure
+        // this LIVE every frame (not once at startup) because item widths grow
+        // when the "—" placeholders are replaced by real quotes, and change on
+        // resize. Using the current set width as the wrap length keeps the loop
+        // truly seamless — the reset lands on pixel-identical content, so the
+        // tape cycles continuously with no visible snap-back.
+        function currentSetWidth() {
+            const first = track.children[0];
+            const nextSet = track.children[origCount];
+            return (first && nextSet) ? nextSet.offsetLeft - first.offsetLeft : 0;
+        }
+
         function step(ts) {
             if (lastTs !== null) {
+                const setW = currentSetWidth();
                 offset += SPEED * (ts - lastTs) / 1000;
-                if (offset >= oneSetW) offset -= oneSetW;
+                // Modulo (not a single subtraction) so we stay in range even if
+                // setW just shrank below the current offset after a re-measure.
+                if (setW > 0) offset = ((offset % setW) + setW) % setW;
                 track.style.transform = `translateX(${-offset}px)`;
             }
             lastTs = ts;
@@ -4252,6 +4286,72 @@ function attachHover(chartEl, traces) {
         hoverLayer.appendChild(d);
         return d;
     });
+
+    // ── Comparison key rows (persistent, animatable) ──────────────────────
+    // For comparison charts we keep ONE row element per trace and only move it,
+    // repositioning with a transitioned transform. When the ranking changes the
+    // rows glide past each other (FLIP-style) instead of the whole tooltip being
+    // rebuilt and snapping. Single-ticker charts don't need this and keep the
+    // lightweight innerHTML tooltip below.
+    const isComp = chartEl.id.includes('comparison');
+    const COMP_ROW_H = 24;
+    const COMP_EASE  = 'transform 260ms cubic-bezier(0.22,0.61,0.36,1)';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let compHeader = null;
+    let compBody = null;
+    let compRows = [];
+    let compOrder = [];
+    if (isComp) {
+        compHeader = document.createElement('div');
+        compHeader.style.cssText = 'color:var(--text-muted);font-size:11px;margin-bottom:6px';
+        tooltip.appendChild(compHeader);
+
+        compBody = document.createElement('div');
+        // Rows stay in NORMAL FLOW so the tooltip sizes to their content and the
+        // %/$ values never wrap. Reordering is animated with a FLIP transform,
+        // which doesn't affect layout — so we get the glide without the overlap.
+        compBody.style.cssText = 'display:flex;flex-direction:column';
+        tooltip.appendChild(compBody);
+
+        compRows = namedTraces.map((t, i) => {
+            const row = document.createElement('div');
+            row.style.cssText =
+                `height:${COMP_ROW_H}px;display:flex;align-items:center;` +
+                'justify-content:space-between;gap:14px;white-space:nowrap;will-change:transform';
+            const clr = t.line?.color || (i === 0 ? CYAN : ORANGE);
+            const nameEl = document.createElement('span');
+            nameEl.innerHTML = `<span style="color:${clr}">●</span>&nbsp;<b style="color:var(--text-strong)">${t.name}</b>`;
+            const valEl = document.createElement('span');
+            valEl.style.cssText = 'font-family:var(--font-mono)';
+            row.appendChild(nameEl);
+            row.appendChild(valEl);
+            compBody.appendChild(row);
+            return { row, valEl };
+        });
+        compOrder = namedTraces.map((_, i) => i);
+    }
+
+    // Reorder the persistent rows to `newOrder` (trace indices, top→bottom) and
+    // animate each from its previous slot via a FLIP transform. Uniform row
+    // height means the invert distance is just the slot delta — no measuring.
+    function applyCompOrder(newOrder) {
+        const oldPos = {};
+        compOrder.forEach((ti, pos) => { oldPos[ti] = pos; });
+        newOrder.forEach(ti => compBody.appendChild(compRows[ti].row));   // set final DOM order
+        newOrder.forEach((ti, newPos) => {
+            const row = compRows[ti].row;
+            const delta = (oldPos[ti] != null ? oldPos[ti] - newPos : 0) * COMP_ROW_H;
+            row.style.transition = 'none';
+            row.style.transform  = `translateY(${delta}px)`;   // invert to old position
+        });
+        void compBody.offsetHeight;   // flush so the invert paints before we play
+        newOrder.forEach(ti => {
+            const row = compRows[ti].row;
+            row.style.transition = reduceMotion ? 'none' : COMP_EASE;
+            row.style.transform  = 'translateY(0)';            // play back to the new slot
+        });
+        compOrder = newOrder.slice();
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const hide = () => {
@@ -4490,32 +4590,39 @@ function attachHover(chartEl, traces) {
             }
 
             // ── Tooltip content ───────────────────────────────────────────
-            const isComp = chartEl.id.includes('comparison');
-            let html = '';
-
             if (isComp) {
-                html = `<div style="color:var(--text-muted);font-size:11px;margin-bottom:6px">${fmtDate(mainXs[idx])}</div>`;
-                hoverTraces.forEach((t, i) => {
-                    const growth = t.y?.[idx];
-                    const price  = t.customdata?.[idx];
-                    const clr    = t.line?.color || (i === 0 ? CYAN : ORANGE);
-                    if (growth == null) return;
-                    const sign   = growth >= 0 ? '+' : '';
-                    const gColor = growth >= 0 ? 'var(--green-text)' : 'var(--rose-text)';
-                    html += `<div style="display:flex;justify-content:space-between;gap:14px;padding:3px 0">
-                        <span><span style="color:${clr}">●</span>&nbsp;<b style="color:var(--text-strong)">${t.name}</b></span>
-                        <span style="font-family:var(--font-mono)">
-                            <span style="color:${gColor}">${sign}${fmtNum(growth)}%</span>
-                            ${price != null ? `<span style="color:var(--text-muted);font-size:11px"> ${fmtUSD(price)}</span>` : ''}
-                        </span>
-                    </div>`;
+                compHeader.textContent = fmtDate(mainXs[idx]);
+                // Rank traces by value at this point (highest first). `r.i` keeps
+                // each trace's original index so its colour stays correct.
+                const ranking = compRows
+                    .map((_, i) => ({ i, growth: hoverTraces[i]?.y?.[idx] }))
+                    .filter(r => r.growth != null)
+                    .sort((a, b) => b.growth - a.growth);
+                const shown = new Set(ranking.map(r => r.i));
+                ranking.forEach(r => {
+                    const { row, valEl } = compRows[r.i];
+                    const price  = hoverTraces[r.i]?.customdata?.[idx];
+                    const sign   = r.growth >= 0 ? '+' : '';
+                    const gColor = r.growth >= 0 ? 'var(--green-text)' : 'var(--rose-text)';
+                    valEl.innerHTML =
+                        `<span style="color:${gColor}">${sign}${fmtNum(r.growth)}%</span>` +
+                        (price != null ? `<span style="color:var(--text-muted);font-size:11px"> ${fmtUSD(price)}</span>` : '');
+                    row.style.display = 'flex';
                 });
+                compRows.forEach((cr, i) => { if (!shown.has(i)) cr.row.style.display = 'none'; });
+                // Animate only when the ranking actually changes (i.e. the lines
+                // cross) — otherwise just the text above updates, no motion.
+                const newOrder = ranking.map(r => r.i);
+                const cur = compOrder.filter(i => shown.has(i));
+                if (newOrder.length !== cur.length || newOrder.some((v, k) => v !== cur[k])) {
+                    applyCompOrder(newOrder);
+                }
             } else {
                 const price  = hoverTraces[0]?.y?.[idx];
                 const ret    = hoverTraces[0]?.customdata?.[idx];
                 const retSign  = ret != null && ret >= 0 ? '+' : '';
                 const retColor = ret != null ? (ret >= 0 ? 'var(--green-text)' : 'var(--rose-text)') : '';
-                html = `<div style="color:var(--cyan-bright);font-weight:800;margin-bottom:5px">${hoverTraces[0]?.name || ''}</div>
+                tooltip.innerHTML = `<div style="color:var(--cyan-bright);font-weight:800;margin-bottom:5px">${hoverTraces[0]?.name || ''}</div>
                     <div style="color:var(--text-muted);font-size:11px;margin-bottom:4px">${fmtDate(mainXs[idx])}</div>
                     <div style="display:flex;justify-content:space-between;gap:12px">
                         <span style="color:var(--text-muted)">Close</span>
@@ -4527,7 +4634,6 @@ function attachHover(chartEl, traces) {
                     </div>` : ''}`;
             }
 
-            tooltip.innerHTML = html;
             tooltip.style.display = 'block';
 
             // Position tooltip beside cursor, flipping left if near the right edge

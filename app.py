@@ -462,7 +462,7 @@ def fetch_live_quote(ticker):
     return {
         "ticker": symbol,
         "price": price,
-        "price_text": format_currency(price),
+        "price_text": (f"{price:,.2f}" if symbol.startswith("^") else format_currency(price)),
         "change": change,
         "change_text": format_signed_currency(change),
         "change_percent": change_percent,
