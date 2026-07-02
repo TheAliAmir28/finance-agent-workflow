@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+import math
 import re
 import threading
 import time
@@ -22,7 +23,7 @@ from tools.interactive_charts import (
     build_comparison_chart_json,
     build_price_chart_json,
 )
-from tools.analyst import logo_candidates_for_ticker, logo_url_for_ticker
+from tools.analyst import brand_color_for_ticker, logo_candidates_for_ticker, logo_url_for_ticker
 from tools.crypto import is_crypto_symbol, normalize_crypto_symbol
 
 app = Flask(__name__)
@@ -217,6 +218,77 @@ def format_signed_percent(value):
     except (TypeError, ValueError):
         return "N/A"
 
+# ── Analyst sentiment gauge ──
+# A semicircular 5-segment gauge (Strong Sell → Strong Buy) with a needle whose
+# angle comes from recommendationMean. The arc/label geometry is identical for
+# every card, so it's computed once here; only the needle angle and per-rating
+# counts vary per company. Colors run red → green and are shared with the hover
+# tooltip's dots so a rating reads the same in both places.
+_RATING_META = [
+    # key,           label,          color      (ordered Strong Buy → Strong Sell
+    ("strong_buy",  "Strong Buy",  "#2FA84F"),  #  for the tooltip, best on top)
+    ("buy",         "Buy",         "#7CC067"),
+    ("hold",        "Hold",        "#E0B33A"),
+    ("sell",        "Sell",        "#F2721B"),
+    ("strong_sell", "Strong Sell", "#E5484D"),
+]
+
+
+def _build_gauge_geometry():
+    cx, cy, r, label_r = 115.0, 100.0, 64.0, 92.0
+    stroke = 14
+    gap_deg = 3.0
+    # Segments run left → right on the arc: Strong Sell … Strong Buy.
+    segments_lr = [
+        ("strong_sell", "#E5484D", ["Strong", "Sell"]),
+        ("sell",        "#F2721B", ["Sell"]),
+        ("hold",        "#E0B33A", ["Hold"]),
+        ("buy",         "#7CC067", ["Buy"]),
+        ("strong_buy",  "#2FA84F", ["Strong", "Buy"]),
+    ]
+
+    def polar(radius, deg):
+        a = math.radians(deg)
+        return cx + radius * math.cos(a), cy - radius * math.sin(a)
+
+    span = 180.0 / len(segments_lr)
+    segments = []
+    for i, (key, color, lines) in enumerate(segments_lr):
+        start = 180.0 - i * span - gap_deg / 2
+        end = 180.0 - (i + 1) * span + gap_deg / 2
+        x1, y1 = polar(r, start)
+        x2, y2 = polar(r, end)
+        mid = (start + end) / 2
+        lx, ly = polar(label_r, mid)
+        # Center every label on its radial point so the outer two-line labels
+        # ("Strong Sell"/"Strong Buy") stay balanced and never run off the box.
+        anchor = "middle"
+        segments.append({
+            "key": key,
+            "color": color,
+            "d": f"M {x1:.2f} {y1:.2f} A {r:.2f} {r:.2f} 0 0 1 {x2:.2f} {y2:.2f}",
+            "lines": lines,
+            "lx": round(lx, 1),
+            "ly": round(ly, 1),
+            "anchor": anchor,
+        })
+
+    return {
+        "view_box": "0 0 230 116",
+        "cx": cx,
+        "cy": cy,
+        "stroke": stroke,
+        # Needle: a slim triangle pointing straight up, rotated about the hub.
+        # Tip stops just short of the arc's inner edge.
+        "needle": f"M {cx - 4} {cy} L {cx} {cy - 54} L {cx + 4} {cy} Z",
+        "hub_r": 7,
+        "segments": segments,
+    }
+
+
+ANALYST_GAUGE = _build_gauge_geometry()
+
+
 def build_analyst_card(analyst_view):
     if not analyst_view:
         return None
@@ -245,11 +317,55 @@ def build_analyst_card(analyst_view):
     }
     sentiment_position = sentiment_positions.get(recommendation, 50)
 
+    # Needle points at the exact center of the verdict's segment so it lines up
+    # cleanly with both the arc band and the label below. Each of the 5 segments
+    # spans 36°, so their centers sit at -72°, -36°, 0° (Hold, straight up),
+    # +36°, +72°. If the verdict isn't one of the five, fall back to the 1–5
+    # mean to pick which segment, then still center the needle in it.
+    verdict_angles = {
+        "Strong Sell": -72,
+        "Sell": -36,
+        "Hold": 0,
+        "Buy": 36,
+        "Strong Buy": 72,
+    }
+    if recommendation in verdict_angles:
+        needle_angle = verdict_angles[recommendation]
+    else:
+        mean = analyst_view.get("recommendation_mean")
+        if mean is not None and mean > 0:
+            fraction = max(0.0, min(1.0, (5 - mean) / 4))
+        else:
+            fraction = sentiment_position / 100
+        segment_index = min(4, max(0, int(fraction * 5)))
+        needle_angle = (segment_index - 2) * 36
+
+    # Per-rating counts for the hover tooltip (Strong Buy → Strong Sell), with
+    # the same colored dots the gauge segments use.
+    rating_counts = analyst_view.get("rating_counts") or {}
+    rating_rows = [
+        {"label": label, "color": color, "count": rating_counts.get(key, 0)}
+        for key, label, color in _RATING_META
+    ] if rating_counts else []
+    total_ratings = sum(rating_counts.values()) if rating_counts else 0
+
+    if total_ratings:
+        based_on_text = f"Based on {total_ratings} analyst{'s' if total_ratings != 1 else ''}"
+    elif analyst_count_text != "N/A":
+        based_on_text = f"Based on {analyst_count_text}"
+    else:
+        based_on_text = ""
+
     return {
         "ticker": analyst_view.get("ticker", ""),
         "available": analyst_view.get("available", False),
         "recommendation": recommendation,
         "sentiment_position": sentiment_position,
+        "needle_angle": needle_angle,
+        "rating_rows": rating_rows,
+        "has_breakdown": bool(rating_rows),
+        "total_ratings": total_ratings,
+        "based_on_text": based_on_text,
         "analyst_count": analyst_count_text,
         "target_mean": format_currency(analyst_view.get("target_mean")),
         "target_low": format_currency(analyst_view.get("target_low")),
@@ -725,6 +841,7 @@ def build_result_context(result):
         "news_cards": [],
         "comparison_result": None,
         "trace": None,
+        "analyst_gauge": ANALYST_GAUGE,
     }
     if not result:
         return context
@@ -736,6 +853,7 @@ def build_result_context(result):
         return context
 
     # Collect per-ticker charts, metrics, and research cards
+    brand_by_ticker = {}
     for ticker in tickers:
         is_crypto = is_crypto_symbol(ticker)
         chart_path = memory.get(f"{ticker}_chart_path")
@@ -747,45 +865,56 @@ def build_result_context(result):
         metrics = memory.get(f"{ticker}_metrics", {}) or {}
         analyst_view = memory.get(f"{ticker}_analyst_view") or {}
         logo_url = analyst_view.get("logo_url") or logo_url_for_ticker(ticker)
+        # Company brand hue, extracted from the logo, used to tint each card.
+        brand_rgb = brand_color_for_ticker(ticker, logo_url)
+        brand_by_ticker[ticker] = brand_rgb
 
         if price_data is not None:
             context["interactive_chart_entries"].append({
                 "id": f"interactive-chart-{ticker}",
                 "ticker": ticker,
                 "logo_url": logo_url,
+                "brand_rgb": brand_rgb,
                 "figure_json": build_price_chart_json(price_data, ticker, period),
                 "summary": build_chart_summary(price_data),
             })
         context["metric_cards"].append({
             "ticker": ticker,
             "logo_url": logo_url,
+            "brand_rgb": brand_rgb,
             "total_return": format_percent(metrics.get("total_return")),
             "volatility": format_percent(metrics.get("volatility")),
             "sharpe_ratio": format_number(metrics.get("sharpe_ratio")),
         })
-        context["report_metric_cards"].append(build_report_metric_card(ticker, metrics, logo_url))
+        report_card = build_report_metric_card(ticker, metrics, logo_url)
+        report_card["brand_rgb"] = brand_rgb
+        context["report_metric_cards"].append(report_card)
 
         if not is_crypto:
             analyst_card = build_analyst_card(analyst_view)
             if analyst_card:
+                analyst_card["brand_rgb"] = brand_rgb
                 context["analyst_cards"].append(analyst_card)
 
             fundamentals_card = build_fundamentals_card(
                 memory.get(f"{ticker}_fundamentals") or {}, logo_url
             )
             if fundamentals_card:
+                fundamentals_card["brand_rgb"] = brand_rgb
                 context["fundamentals_cards"].append(fundamentals_card)
 
             earnings_card = build_earnings_card(
                 memory.get(f"{ticker}_earnings") or {}, logo_url
             )
             if earnings_card:
+                earnings_card["brand_rgb"] = brand_rgb
                 context["earnings_cards"].append(earnings_card)
 
         ticker_news = memory.get(f"{ticker}_news", []) or []
         context["news_cards"].append({
             "ticker": ticker,
             "logo_url": logo_url,
+            "brand_rgb": brand_rgb,
             "items": ticker_news[:3],
         })
 
@@ -798,20 +927,29 @@ def build_result_context(result):
         if price_data_a is not None and price_data_b is not None:
             context["interactive_comparison_chart"] = {
                 "id": "interactive-comparison-chart",
+                "brand_rgb_a": brand_by_ticker.get(tickers[0]),
+                "brand_rgb_b": brand_by_ticker.get(tickers[1]),
                 "figure_json": build_comparison_chart_json(
                     price_data_a, price_data_b, tickers[0], tickers[1], result.get("period", ""),
                 ),
             }
 
-    # Collect optional LLM summaries
+    # Collect optional LLM summaries (tinted with the company's brand hue; the
+    # comparison summary gets both hues split like the comparison chart).
     for ticker in tickers:
         llm_text = memory.get(f"{ticker}_llm_summary")
         if llm_text:
-            context["llm_summaries"].append(build_llm_summary_card(f"{ticker} AI Summary", llm_text))
+            summary_card = build_llm_summary_card(f"{ticker} AI Summary", llm_text)
+            summary_card["brand_rgb"] = brand_by_ticker.get(ticker)
+            context["llm_summaries"].append(summary_card)
 
     comparison_llm = memory.get("comparison_llm_summary")
     if comparison_llm:
-        context["llm_summaries"].append(build_llm_summary_card("Comparison AI Summary", comparison_llm))
+        summary_card = build_llm_summary_card("Comparison AI Summary", comparison_llm)
+        if len(tickers) == 2:
+            summary_card["brand_rgb_a"] = brand_by_ticker.get(tickers[0])
+            summary_card["brand_rgb_b"] = brand_by_ticker.get(tickers[1])
+        context["llm_summaries"].append(summary_card)
 
     return context
 

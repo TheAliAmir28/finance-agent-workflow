@@ -97,19 +97,22 @@
 
         /* ── Dark theme overrides ── */
         [data-theme="dark"] {
-            --bg:             #050A12;
-            --bg-2:           #080E1A;
-            --panel:          #0C1524;
-            --panel-2:        #0F1B2D;
-            --surface:        #0A1221;
-            --surface-hover:  #111E33;
-            --border:         rgba(56,189,248,0.12);
-            --border-strong:  rgba(56,189,248,0.24);
+            /* Cool Graphite: near-neutral surfaces with only a faint cool
+               undertone, so brand tints read true instead of muddying on blue. */
+            --bg:             #0A0C11;
+            --bg-2:           #0E1015;
+            --panel:          #161922;
+            --panel-2:        #1B1F29;
+            --surface:        #14161C;
+            --surface-hover:  #1C1F28;
+            /* Default structure is neutral white-alpha; cyan is accent-only. */
+            --border:         rgba(255,255,255,0.09);
+            --border-strong:  rgba(255,255,255,0.16);
             --border-subtle:  rgba(255,255,255,0.06);
-            --text:           #C8D8F0;
-            --text-strong:    #F0F6FF;
-            --text-muted:     #5E7A9A;
-            --text-dim:       #3D5470;
+            --text:           #CDD3DC;
+            --text-strong:    #F3F5F9;
+            --text-muted:     #7C8593;
+            --text-dim:       #515863;
             --cyan:           #38BDF8;
             --cyan-bright:    #7DD3FC;
             --cyan-dim:       rgba(56,189,248,0.15);
@@ -124,25 +127,25 @@
             --purple:         #8B5CF6;
             --purple-dim:     rgba(139,92,246,0.15);
 
-            --body-bg:            #050A12;
-            --topbar-bg:          rgba(5,10,18,0.88);
-            --topbar-border:      rgba(56,189,248,0.12);
+            --body-bg:            #0A0C11;
+            --topbar-bg:          rgba(10,12,17,0.90);
+            --topbar-border:      rgba(255,255,255,0.08);
             --topbar-shadow:      none;
             --section-border:     rgba(255,255,255,0.06);
-            --section-shadow:     0 8px 32px rgba(0,0,0,0.3);
+            --section-shadow:     0 8px 32px rgba(0,0,0,0.34);
             --section-blur:       none;
-            --hero-border:        rgba(56,189,248,0.24);
-            --hero-shadow:        0 0 0 1px rgba(56,189,248,0.05), 0 24px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+            --hero-border:        rgba(255,255,255,0.10);
+            --hero-shadow:        0 0 0 1px rgba(56,189,248,0.05), 0 24px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
             --hero-blur:          none;
-            --hero-glow-a:        rgba(56,189,248,0.12);
-            --hero-glow-b:        rgba(139,92,246,0.07);
-            --shead-bg:           linear-gradient(90deg, rgba(56,189,248,0.04), transparent 60%);
-            --card-hover-sh:      0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px var(--border);
-            --tooltip-bg:         rgba(8,14,26,0.96);
-            --tooltip-border:     rgba(56,189,248,0.24);
-            --tooltip-shadow:     0 16px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(56,189,248,0.08);
+            --hero-glow-a:        rgba(56,189,248,0.10);
+            --hero-glow-b:        rgba(139,92,246,0.06);
+            --shead-bg:           linear-gradient(90deg, rgba(255,255,255,0.03), transparent 60%);
+            --card-hover-sh:      0 8px 32px rgba(0,0,0,0.34), 0 0 0 1px var(--border-strong);
+            --tooltip-bg:         rgba(16,18,24,0.97);
+            --tooltip-border:     rgba(255,255,255,0.12);
+            --tooltip-shadow:     0 16px 40px rgba(0,0,0,0.62), 0 0 0 1px rgba(255,255,255,0.05);
             --guide-color:        rgba(56,189,248,0.22);
-            --dot-ring:           rgba(12,21,36,0.95);
+            --dot-ring:           rgba(22,25,34,0.95);
             --insight-bg:         linear-gradient(135deg, rgba(56,189,248,0.04), rgba(139,92,246,0.03));
             --badge-purple-clr:   #C4B5FD;
             --badge-purple-bdr:   rgba(139,92,246,0.28);
@@ -150,27 +153,46 @@
             --ai-icon-clr:        #C4B5FD;
             --ai-icon-bdr:        rgba(139,92,246,0.28);
             --featured-sh:        0 0 30px rgba(56,189,248,0.06);
-            --scrollbar-clr:      rgba(56,189,248,0.3);
-            --scrollbar-hover:    rgba(56,189,248,0.5);
+            --scrollbar-clr:      rgba(255,255,255,0.16);
+            --scrollbar-hover:    rgba(255,255,255,0.28);
         }
 
         /* Dark mode body & ambient overrides */
         [data-theme="dark"] body {
-            background: #050A12;
+            background: #0A0C11;
         }
+        /* Aurora: soft cyan/indigo/blue color fields that drift slowly. Sits
+           underneath the dot grid (::after) so the pattern floats over it. */
         [data-theme="dark"] body::before {
             background:
-                linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
+                radial-gradient(40% 44% at 16% 20%, rgba(56,189,248,0.11) 0%, transparent 70%),
+                radial-gradient(44% 48% at 84% 26%, rgba(129,92,246,0.10) 0%, transparent 70%),
+                radial-gradient(50% 54% at 62% 92%, rgba(45,140,255,0.07) 0%, transparent 72%);
+            background-size: auto;
+            animation: aurora-drift 34s ease-in-out infinite alternate;
+            will-change: transform;
         }
+        /* Refined dot grid, masked to fade toward the edges for depth. */
         [data-theme="dark"] body::after {
-            top: -200px;
+            top: 0;
+            left: 0;
             right: auto;
-            left: -200px;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(56,189,248,0.06) 0%, transparent 70%);
+            bottom: auto;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1.6px);
+            background-size: 26px 26px;
+            -webkit-mask-image: radial-gradient(ellipse 78% 78% at 50% 38%, #000 32%, transparent 100%);
+                    mask-image: radial-gradient(ellipse 78% 78% at 50% 38%, #000 32%, transparent 100%);
+        }
+
+        @keyframes aurora-drift {
+            0%   { transform: translate3d(-2%, -1%, 0) scale(1.06); }
+            50%  { transform: translate3d(2%, 2%, 0) scale(1.12); }
+            100% { transform: translate3d(-1%, 1%, 0) scale(1.05); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            [data-theme="dark"] body::before { animation: none; }
         }
 
         /* ── Reset & base ── */
@@ -533,6 +555,7 @@
         /* ── Hero / search panel ── */
         .hero {
             position: relative;
+            isolation: isolate;   /* own stacking context: glow behind, content above */
             overflow: hidden;
             border-radius: var(--radius-xl);
             border: 1px solid var(--hero-border);
@@ -543,26 +566,58 @@
             box-shadow: var(--hero-shadow);
         }
 
+        /* Animated ambient hero glow: soft, blurred, multicolor light that
+           pulses like a slow heartbeat behind the content. Two layers on
+           separate transforms so they don't fight — ::before breathes (scale),
+           ::after slowly rotates/drifts and shifts hue — which together keep the
+           color quietly moving. Both are heavily blurred so nothing reads as a
+           hard shape, and overflow:hidden keeps it contained to the panel. */
         .hero::before {
             content: '';
             position: absolute;
-            top: -80px;
-            right: -80px;
-            width: 360px;
-            height: 360px;
-            background: radial-gradient(circle, var(--hero-glow-a) 0%, transparent 65%);
+            inset: -25%;
+            z-index: 0;
+            background:
+                radial-gradient(28% 36% at 26% 32%, rgba(168,85,247,0.55), transparent 62%),
+                radial-gradient(26% 34% at 72% 28%, rgba(236,72,153,0.45), transparent 62%),
+                radial-gradient(32% 40% at 62% 74%, rgba(56,189,248,0.45), transparent 62%),
+                radial-gradient(24% 32% at 30% 80%, rgba(251,146,60,0.36), transparent 62%);
+            filter: blur(64px);
+            opacity: 0.55;
             pointer-events: none;
+            animation: hero-glow-pulse 7.5s ease-in-out infinite;
         }
 
         .hero::after {
             content: '';
             position: absolute;
-            bottom: -60px;
-            left: 40%;
-            width: 280px;
-            height: 280px;
-            background: radial-gradient(circle, var(--hero-glow-b) 0%, transparent 65%);
+            inset: -25%;
+            z-index: 0;
+            background:
+                radial-gradient(30% 38% at 60% 30%, rgba(129,92,246,0.42), transparent 62%),
+                radial-gradient(28% 36% at 28% 58%, rgba(56,189,248,0.38), transparent 62%),
+                radial-gradient(26% 34% at 76% 70%, rgba(236,72,153,0.34), transparent 62%),
+                radial-gradient(24% 30% at 48% 86%, rgba(251,146,60,0.30), transparent 62%);
+            filter: blur(72px);
+            opacity: 0.45;
             pointer-events: none;
+            animation: hero-glow-drift 26s ease-in-out infinite alternate;
+        }
+
+        /* Keep the hero's real content above the glow layers. */
+        .hero > * { position: relative; z-index: 1; }
+
+        @keyframes hero-glow-pulse {
+            0%, 100% { transform: scale(1);    opacity: 0.40; }
+            50%      { transform: scale(1.16); opacity: 0.62; }
+        }
+        @keyframes hero-glow-drift {
+            0%   { transform: rotate(0deg)  scale(1.05); filter: blur(72px) hue-rotate(-18deg); }
+            50%  { transform: rotate(7deg)  scale(1.12); filter: blur(72px) hue-rotate(14deg); }
+            100% { transform: rotate(-5deg) scale(1.06); filter: blur(72px) hue-rotate(-8deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hero::before, .hero::after { animation: none; }
         }
 
         .hero-eyebrow {
@@ -681,123 +736,222 @@
             gap: 6px;
         }
 
+        /* Trap the Run button's z-index:-1 glow above the hero panel in every
+           theme. The hero only forms a stacking context in light mode (via
+           backdrop-filter); without this the glow sinks behind the opaque
+           panel in dark mode and vanishes. */
+        .form-group:has(.btn-run),
+        .form-group:has(.toggle) { position: relative; z-index: 0; }
+
+        /* Time range: a dark pill that lights up cyan on hover/focus, matching
+           the textarea's accent-glow language and the Run button's pill shape. */
         select.form-select {
             height: 42px;
-            padding: 0 36px 0 12px;
-            border-radius: var(--radius-sm);
+            padding: 0 40px 0 18px;
+            border-radius: 999px;
             border: 1px solid var(--border);
-            background: var(--surface);
-            color: var(--text);
+            background-color: var(--surface);
+            color: var(--text-strong);
             font-size: 14px;
             font-weight: 700;
             font-family: inherit;
             cursor: pointer;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235E7A9A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C8593' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
-            transition: border-color 200ms ease;
+            background-position: right 15px center;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
+        }
+
+        select.form-select:hover {
+            border-color: var(--cyan-line);
+            box-shadow: 0 0 12px rgba(56,189,248,0.10);
         }
 
         select.form-select:focus {
             outline: none;
             border-color: var(--cyan);
+            box-shadow: 0 0 0 3px var(--cyan-dim), 0 0 18px rgba(56,189,248,0.12);
         }
 
-        .btn-run {
+        /* AI Summary flag — sleek pill toggle. */
+        .toggle {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
+            gap: 10px;
             height: 42px;
-            padding: 0 28px;
-            border-radius: var(--radius-sm);
-            border: none;
-            background: linear-gradient(135deg, var(--cyan) 0%, var(--cyan-bright) 100%);
-            color: #050A12;
-            font-size: 14px;
-            font-weight: 800;
-            font-family: inherit;
             cursor: pointer;
-            transition: all 200ms ease;
-            position: relative;
-            white-space: nowrap;
-            box-shadow: 0 4px 20px rgba(56,189,248,0.4);
+            user-select: none;
         }
 
-        .btn-run::before {
+        .toggle input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .toggle-track {
+            position: relative;
+            width: 46px;
+            height: 26px;
+            border-radius: 999px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.30);
+            flex-shrink: 0;
+            transition: background 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+        }
+
+        /* Smooth blurred aura behind the track — one gradient layer (not stacked
+           box-shadows) so the glow reads as a clean, soft sky-blue bloom.
+           z-index:-1 is trapped above the panel by the form-group rule. */
+        .toggle-track::before {
             content: '';
             position: absolute;
-            inset: 0;
+            inset: -4px;
             border-radius: inherit;
-            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            background: linear-gradient(90deg, #38bdf8, #7dd3fc);
+            filter: blur(8px);
             opacity: 0;
-            transition: opacity 200ms ease;
-            z-index: 1;
+            z-index: -1;
+            transition: opacity 260ms ease;
+            pointer-events: none;
         }
 
-        /* Rotating cyan/purple glow around the button on hover */
-        @property --glow-angle {
+        .toggle-thumb {
+            position: absolute;
+            top: 50%;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 50% 34%, #ffffff, #eceff5);
+            transform: translateY(-50%);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(0,0,0,0.05);
+            transition: left 260ms cubic-bezier(.34,1.56,.64,1);
+        }
+
+        /* On: soft sky-blue fill + a subtle glossy top highlight. */
+        .toggle input:checked + .toggle-track {
+            background: linear-gradient(90deg, #38bdf8 0%, #7dd3fc 100%);
+            border-color: transparent;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.30);
+        }
+
+        .toggle input:checked + .toggle-track::before { opacity: 0.7; }
+
+        .toggle input:checked + .toggle-track .toggle-thumb { left: 23px; }
+
+        .toggle input:focus-visible + .toggle-track {
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.25),
+                        0 0 0 3px var(--cyan-dim);
+        }
+
+        .toggle-text {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            min-width: 22px;
+            transition: color 200ms ease;
+        }
+
+        .toggle input:checked ~ .toggle-text { color: var(--cyan-bright); }
+
+        /* Dark pill CTA with a colorful glow that blooms from *behind* it on
+           hover (AWS-style). The glow is a blurred gradient in two pseudo layers
+           at z-index:-1, visible only around the pill's edges because the opaque
+           dark fill paints on top. The button must NOT create its own stacking
+           context (no transform / opacity / numeric z-index in resting or hover
+           state), or those -1 layers would jump in front of the fill. */
+        /* Animatable angle for the circulating glow (registered so it can be
+           interpolated in a keyframe). */
+        @property --run-glow-angle {
             syntax: '<angle>';
             initial-value: 0deg;
             inherits: false;
         }
 
-        .btn-run::after {
+        .btn-run {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 42px;
+            padding: 0 30px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: #1a2338;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+            transition: border-color 220ms ease, box-shadow 220ms ease;
+        }
+
+        /* Wide, soft outer halo — a conic sweep of the AWS palette so the light
+           travels around the pill when the angle animates on hover. */
+        .btn-run::before {
             content: '';
             position: absolute;
-            inset: -2px;
+            inset: -5px;
             border-radius: inherit;
-            padding: 3.5px;               /* ring thickness */
-            background: conic-gradient(
-                from var(--glow-angle),
-                transparent 0deg,
-                #06e7ff 50deg,
-                #22d3ee 110deg,
-                #c084fc 180deg,
-                #a855f7 230deg,
-                transparent 270deg,
-                transparent 360deg
-            );
-            /* keep only the border ring, punch out the interior */
-            -webkit-mask:
-                linear-gradient(#000 0 0) content-box,
-                linear-gradient(#000 0 0);
-            -webkit-mask-composite: xor;
-                    mask-composite: exclude;
-            filter:
-                drop-shadow(0 0 5px #06e7ff)
-                drop-shadow(0 0 11px #a855f7)
-                drop-shadow(0 0 20px #22d3ee)
-                drop-shadow(0 0 30px rgba(168,85,247,0.65));
+            background: conic-gradient(from var(--run-glow-angle),
+                #ff4d9d 0deg, #b45cff 120deg, #37b7ff 240deg, #ff4d9d 360deg);
+            filter: blur(15px);
             opacity: 0;
-            z-index: 2;
-            transition: opacity 280ms ease;
+            z-index: -1;
+            transition: opacity 360ms ease;
             pointer-events: none;
         }
 
-        @keyframes glow-spin {
-            to { --glow-angle: 360deg; }
+        /* Tighter, brighter circulating glow hugging the pill. */
+        .btn-run::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: inherit;
+            background: conic-gradient(from var(--run-glow-angle),
+                #ff4d9d 0deg, #b45cff 120deg, #37b7ff 240deg, #ff4d9d 360deg);
+            filter: blur(9px);
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 320ms ease;
+            pointer-events: none;
         }
 
-        .btn-run:hover::before { opacity: 1; }
-        .btn-run:hover::after {
-            opacity: 0.85;
-            animation: glow-spin 6s linear infinite;
+        @keyframes run-glow-spin {
+            to { --run-glow-angle: 360deg; }
         }
-        .btn-run:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(56,189,248,0.35); }
-        .btn-run:active { transform: translateY(0); }
+
+        .btn-run:hover { border-color: rgba(255,255,255,0.26); }
+        .btn-run:hover::before {
+            opacity: 0.55;
+            animation: run-glow-spin 4s linear infinite;
+        }
+        .btn-run:hover::after {
+            opacity: 0.95;
+            animation: run-glow-spin 4s linear infinite;
+        }
+        .btn-run:active { box-shadow: 0 1px 6px rgba(0,0,0,0.4); }
 
         @media (prefers-reduced-motion: reduce) {
+            .btn-run:hover::before,
             .btn-run:hover::after { animation: none; }
         }
 
         .btn-run:disabled {
             cursor: wait;
             opacity: 0.7;
-            transform: none;
             box-shadow: none;
         }
+        .btn-run:disabled::before,
+        .btn-run:disabled::after { opacity: 0; }
 
         .btn-run svg { width: 16px; height: 16px; }
 
@@ -892,6 +1046,8 @@
 
         /* ── Section panels ── */
         .section {
+            position: relative;
+            isolation: isolate;   /* own stacking context: glow behind, content above */
             border-radius: var(--radius-lg);
             border: 1px solid var(--section-border);
             background: var(--panel);
@@ -900,6 +1056,46 @@
             -webkit-backdrop-filter: var(--section-blur);
             box-shadow: var(--section-shadow);
             animation: fade-up 400ms ease both;
+        }
+
+        /* Ambient glow behind each section — the same idea as the hero, but
+           quieter: one blurred multicolor layer that gently pulses (scale +
+           opacity) and slowly shifts hue. Phase-offset per section below so they
+           don't all breathe in unison. */
+        .section::before {
+            content: '';
+            position: absolute;
+            inset: -20%;
+            z-index: 0;
+            background:
+                radial-gradient(30% 40% at 22% 30%, rgba(168,85,247,0.20), transparent 62%),
+                radial-gradient(28% 38% at 78% 30%, rgba(56,189,248,0.18), transparent 62%),
+                radial-gradient(26% 36% at 62% 82%, rgba(236,72,153,0.15), transparent 62%),
+                radial-gradient(24% 32% at 32% 80%, rgba(251,146,60,0.12), transparent 62%);
+            filter: blur(64px);
+            opacity: 0.45;
+            pointer-events: none;
+            animation: section-glow-pulse 9s ease-in-out infinite,
+                       section-glow-shift 24s ease-in-out infinite alternate;
+        }
+
+        /* Keep section content above the glow. */
+        .section > * { position: relative; z-index: 1; }
+
+        /* Desync the pulse/shift so sections don't all breathe together. */
+        .section:nth-child(2n)::before { animation-delay: -3s, -9s; }
+        .section:nth-child(3n)::before { animation-delay: -6s, -16s; }
+
+        @keyframes section-glow-pulse {
+            0%, 100% { transform: scale(1);    opacity: 0.35; }
+            50%      { transform: scale(1.12); opacity: 0.50; }
+        }
+        @keyframes section-glow-shift {
+            from { filter: blur(64px) hue-rotate(-20deg); }
+            to   { filter: blur(64px) hue-rotate(22deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .section::before { animation: none; }
         }
 
         /* The inner content cards across every section share the same hover
@@ -1817,53 +2013,115 @@
             color: var(--text-muted);
         }
 
-        .recommendation-pill {
-            display: inline-flex;
-            align-items: center;
-            padding: 5px 12px;
-            border-radius: 99px;
-            background: var(--cyan-dim);
-            border: 1px solid var(--cyan-line);
-            color: var(--cyan-bright);
-            font-size: 12px;
-            font-weight: 900;
-            white-space: nowrap;
-        }
-
-        .sentiment-meter { display: flex; flex-direction: column; gap: 6px; }
-
-        .sentiment-track {
+        /* ── Analyst sentiment gauge ── */
+        .analyst-gauge {
             position: relative;
-            height: 8px;
-            border-radius: 99px;
-            background: linear-gradient(90deg,
-                #7F1D1D 0%,
-                #B45309 25%,
-                #374151 50%,
-                #065F46 75%,
-                #10B981 100%);
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
-        }
-
-        .sentiment-marker {
-            position: absolute;
-            top: 50%;
-            left: var(--sentiment-position, 50%);
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: var(--text-strong);
-            border: 2px solid var(--panel);
-            box-shadow: 0 0 0 1px var(--cyan);
-            transform: translate(-50%, -50%);
-        }
-
-        .sentiment-labels {
             display: flex;
-            justify-content: space-between;
-            color: var(--text-dim);
-            font-size: 11px;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 2px;
+        }
+
+        .gauge-svg {
+            width: 100%;
+            max-width: 260px;
+            height: auto;
+            overflow: visible;   /* let outer labels breathe past the arc box */
+        }
+
+        .gauge-seg {
+            stroke-linecap: butt;
+            transition: stroke-width 160ms ease;
+        }
+
+        .analyst-gauge:hover .gauge-seg { stroke-width: 18; }
+
+        .gauge-label {
+            fill: var(--text-muted);
+            font-size: 10px;
             font-weight: 700;
+            font-family: Inter, 'Segoe UI', sans-serif;
+        }
+
+        .gauge-needle path { fill: var(--text-strong); }
+
+        .gauge-hub {
+            fill: var(--text-strong);
+            stroke: var(--surface);
+            stroke-width: 2;
+        }
+
+        .gauge-verdict {
+            margin-top: 4px;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: -0.3px;
+            color: var(--text-strong);
+        }
+
+        .gauge-subtitle {
+            margin-top: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* Hover breakdown — mirrors the gauge's colored dots. */
+        .gauge-tooltip {
+            position: absolute;
+            top: 6px;
+            left: 0;
+            min-width: 172px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--tooltip-bg);
+            border: 1px solid var(--tooltip-border);
+            box-shadow: var(--tooltip-shadow);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px);
+            transition: opacity 160ms ease, transform 160ms ease, visibility 160ms;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .analyst-gauge.has-breakdown:hover .gauge-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .gauge-tooltip-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-strong);
+            margin-bottom: 8px;
+        }
+
+        .gauge-tooltip-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 3px 0;
+            font-size: 12px;
+        }
+
+        .gauge-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .gauge-tooltip-label { font-weight: 700; color: var(--text); }
+
+        .gauge-tooltip-count {
+            margin-left: auto;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: var(--text-strong);
         }
 
         .analyst-stats {
@@ -2174,6 +2432,9 @@
         }
 
         .wl-panel {
+            position: relative;
+            isolation: isolate;   /* own stacking context: glow behind, content above */
+            overflow: hidden;     /* contain the glow (inner .wl-list keeps its own scroll) */
             border-radius: var(--radius-lg);
             border: 1px solid var(--section-border);
             background: var(--panel);
@@ -2184,6 +2445,33 @@
             display: flex;
             flex-direction: column;
             gap: 14px;
+        }
+
+        /* Same ambient glow as the sections, reusing their pulse/shift keyframes. */
+        .wl-panel::before {
+            content: '';
+            position: absolute;
+            inset: -20%;
+            z-index: 0;
+            background:
+                radial-gradient(32% 42% at 24% 28%, rgba(168,85,247,0.20), transparent 62%),
+                radial-gradient(30% 40% at 78% 34%, rgba(56,189,248,0.17), transparent 62%),
+                radial-gradient(28% 38% at 60% 84%, rgba(236,72,153,0.15), transparent 62%),
+                radial-gradient(24% 32% at 34% 80%, rgba(251,146,60,0.12), transparent 62%);
+            filter: blur(64px);
+            opacity: 0.45;
+            pointer-events: none;
+            animation: section-glow-pulse 9s ease-in-out infinite,
+                       section-glow-shift 24s ease-in-out infinite alternate;
+        }
+
+        .wl-panel > * { position: relative; z-index: 1; }
+
+        /* Offset the Recent Runs panel so it doesn't pulse in sync with the watchlist. */
+        .rr-panel::before { animation-delay: -4.5s, -12s; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .wl-panel::before { animation: none; }
         }
 
         .wl-panel-head {
@@ -2633,6 +2921,88 @@
         .metric-card:nth-child(1) { animation-delay: 200ms; }
         .metric-card:nth-child(2) { animation-delay: 300ms; }
         .metric-card:nth-child(3) { animation-delay: 400ms; }
+
+        /* ── Brand-tinted company cards ──
+           Each per-company card carries its logo's dominant hue in --brand-rgb.
+           We wash the surface with a soft diagonal gradient of that color and
+           tint the border + hover glow, so the card subtly reads in the
+           company's own brand color (e.g. Oracle red, NVIDIA green). Placed
+           after every card rule so its single-class selectors win on order. */
+        .brand-tint {
+            background:
+                linear-gradient(158deg,
+                    rgba(var(--brand-rgb), 0.13) 0%,
+                    rgba(var(--brand-rgb), 0.03) 44%,
+                    transparent 82%),
+                var(--surface);
+            border-color: rgba(var(--brand-rgb), 0.30);
+        }
+
+        .brand-tint:hover {
+            border-color: rgba(var(--brand-rgb), 0.55);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.30),
+                        0 0 22px rgba(var(--brand-rgb), 0.18);
+        }
+
+        /* Recolor the metric card's top accent bar to the brand hue. */
+        .metric-card.brand-tint::before {
+            background: linear-gradient(90deg,
+                rgba(var(--brand-rgb), 0.95),
+                rgba(var(--brand-rgb), 0.25));
+            opacity: 0.85;
+        }
+
+        /* Report section: each company's metric column is a flush panel column
+           (no card border), so it gets a soft top-down brand wash and a
+           brand-tinted header rule rather than the full bordered card tint. */
+        .report-metric-group.brand-column {
+            background: linear-gradient(180deg,
+                rgba(var(--brand-rgb), 0.11) 0%,
+                rgba(var(--brand-rgb), 0.02) 55%,
+                transparent 100%);
+            border-radius: 10px;
+            /* Uniform inset on tinted columns — overrides the first column's
+               flush padding-left:0 so the wash never crowds the logo/stats. */
+            padding: 12px 18px;
+        }
+
+        .report-metric-group.brand-column .report-ticker-header {
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(var(--brand-rgb), 0.35);
+        }
+
+        /* Sidebar ticker pills pick up a subtle brand fill + border to match. */
+        .report-ticker-pill.brand-pill {
+            background: rgba(var(--brand-rgb), 0.12);
+            border-color: rgba(var(--brand-rgb), 0.40);
+        }
+
+        /* Recolor the AI insight card's top accent bar to match its tint. */
+        .insight-card.brand-tint::before {
+            background: linear-gradient(90deg,
+                rgba(var(--brand-rgb), 0.90),
+                rgba(var(--brand-rgb), 0.25));
+        }
+
+        .insight-card.comparison-brand::before {
+            background: linear-gradient(90deg,
+                rgba(var(--brand-a), 0.85),
+                rgba(var(--brand-b), 0.85));
+        }
+
+        /* Split wash — company A's hue bleeds in from the left, company B's
+           from the right, dissolving to a clean, neutral merge through the
+           center. Shared by the growth comparison chart and comparison AI card. */
+        .chart-card.featured.comparison-brand,
+        .insight-card.comparison-brand {
+            background: linear-gradient(105deg,
+                rgba(var(--brand-a), 0.18) 0%,
+                rgba(var(--brand-a), 0.06) 26%,
+                transparent 50%,
+                rgba(var(--brand-b), 0.06) 74%,
+                rgba(var(--brand-b), 0.18) 100%),
+                var(--surface);
+        }
     </style>
 </head>
 <body>
@@ -2822,12 +3192,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="summarySelect">AI Summary</label>
-                        <select class="form-select" id="summarySelect" name="summary_mode">
-                            {% for option in summary_options %}
-                            <option value="{{ option.value }}" {% if selected_summary == option.value %}selected{% endif %}>{{ option.label }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label" for="summaryToggle">AI Summary</label>
+                        <label class="toggle" for="summaryToggle">
+                            <input type="checkbox" id="summaryToggle" {% if selected_summary != 'no_summary' %}checked{% endif %}>
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                            <span class="toggle-text">{% if selected_summary != 'no_summary' %}On{% else %}Off{% endif %}</span>
+                        </label>
+                        <input type="hidden" name="summary_mode" id="summaryModeInput" value="{% if selected_summary == 'no_summary' %}no_summary{% else %}with_summary{% endif %}">
                     </div>
 
                     <div class="form-group" style="margin-top:auto">
@@ -2959,7 +3330,7 @@
             <div class="section-body">
                 <div class="metric-grid">
                     {% for card in metric_cards %}
-                    <article class="metric-card">
+                    <article class="metric-card{% if card.brand_rgb %} brand-tint{% endif %}"{% if card.brand_rgb %} style="--brand-rgb: {{ card.brand_rgb }}"{% endif %}>
                         <div class="metric-card-header">
                             <div class="ticker-lockup">
                                 {% if card.logo_url %}<img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
@@ -3005,7 +3376,7 @@
             <div class="section-body">
                 <div class="fundamentals-grid">
                     {% for card in fundamentals_cards %}
-                    <article class="fundamentals-card">
+                    <article class="fundamentals-card{% if card.brand_rgb %} brand-tint{% endif %}"{% if card.brand_rgb %} style="--brand-rgb: {{ card.brand_rgb }}"{% endif %}>
                         <div class="fundamentals-card-header">
                             {% if card.logo_url %}<img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
                             <div>
@@ -3049,7 +3420,7 @@
             </div>
             <div class="section-body">
                 {% for card in earnings_cards %}
-                <article class="earnings-card">
+                <article class="earnings-card{% if card.brand_rgb %} brand-tint{% endif %}"{% if card.brand_rgb %} style="--brand-rgb: {{ card.brand_rgb }}"{% endif %}>
                     <div class="earnings-card-header">
                         {% if card.logo_url %}<img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
                         <h3 class="earnings-card-title">{{ card.ticker }}</h3>
@@ -3110,7 +3481,7 @@
                             {% for ticker in result.tickers %}
                                 {% for card in report_metric_cards %}
                                     {% if card.ticker == ticker %}
-                                    <span class="report-ticker-pill">
+                                    <span class="report-ticker-pill{% if card.brand_rgb %} brand-pill{% endif %}"{% if card.brand_rgb %} style="--brand-rgb: {{ card.brand_rgb }}"{% endif %}>
                                         {% if card.logo_url %}<img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
                                         {{ ticker }}
                                     </span>
@@ -3133,7 +3504,7 @@
                     <div class="report-metrics-panel">
                         <div class="report-metric-groups">
                             {% for card in report_metric_cards %}
-                            <div class="report-metric-group">
+                            <div class="report-metric-group{% if card.brand_rgb %} brand-column{% endif %}"{% if card.brand_rgb %} style="--brand-rgb: {{ card.brand_rgb }}"{% endif %}>
                                 <div class="report-ticker-header">
                                     {% if card.logo_url %}<img class="ticker-logo" src="{{ card.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
                                     <h3>{{ card.ticker }}</h3>
@@ -3168,7 +3539,7 @@
             <div class="section-body">
                 <div class="chart-grid{% if interactive_chart_entries|length == 2 %} double{% endif %}">
                     {% for chart in interactive_chart_entries %}
-                    <div class="chart-card">
+                    <div class="chart-card{% if chart.brand_rgb %} brand-tint{% endif %}"{% if chart.brand_rgb %} style="--brand-rgb: {{ chart.brand_rgb }}"{% endif %}>
                         <div class="chart-card-header">
                             <h3 class="chart-card-title">
                                 {% if chart.logo_url %}<img class="ticker-logo chart-title-logo" src="{{ chart.logo_url }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
@@ -3191,7 +3562,7 @@
                     {% endfor %}
 
                     {% if interactive_comparison_chart %}
-                    <div class="chart-card featured">
+                    <div class="chart-card featured{% if interactive_comparison_chart.brand_rgb_a and interactive_comparison_chart.brand_rgb_b %} comparison-brand{% endif %}"{% if interactive_comparison_chart.brand_rgb_a and interactive_comparison_chart.brand_rgb_b %} style="--brand-a: {{ interactive_comparison_chart.brand_rgb_a }}; --brand-b: {{ interactive_comparison_chart.brand_rgb_b }}"{% endif %}>
                         <div class="chart-card-header">
                             <h3 class="chart-card-title">Growth Comparison</h3>
                             <span class="chart-label">Hover enabled</span>
@@ -3222,27 +3593,50 @@
             <div class="section-body">
                 <div class="analyst-grid">
                     {% for card in analyst_cards %}
-                    <article class="analyst-card">
+                    <article class="analyst-card{% if card.brand_rgb %} brand-tint{% endif %}"{% if card.brand_rgb %} style="--brand-rgb: {{ card.brand_rgb }}"{% endif %}>
                         <div class="analyst-card-top">
                             <div>
                                 <h3 class="analyst-ticker">{{ card.ticker }}</h3>
                                 <div class="analyst-count">{{ card.analyst_count }}</div>
                             </div>
-                            <div class="recommendation-pill">{{ card.recommendation }}</div>
-                        </div>
-
-                        <div class="sentiment-meter">
-                            <div class="sentiment-track" style="--sentiment-position: {{ card.sentiment_position }}%">
-                                <span class="sentiment-marker"></span>
-                            </div>
-                            <div class="sentiment-labels">
-                                <span>Strong Sell</span>
-                                <span>Hold</span>
-                                <span>Strong Buy</span>
-                            </div>
                         </div>
 
                         {% if card.available %}
+                        <div class="analyst-gauge{% if card.has_breakdown %} has-breakdown{% endif %}">
+                            <svg class="gauge-svg" viewBox="{{ analyst_gauge.view_box }}" role="img"
+                                 aria-label="Analyst rating: {{ card.recommendation }}">
+                                {% for seg in analyst_gauge.segments %}
+                                <path class="gauge-seg" d="{{ seg.d }}" fill="none"
+                                      stroke="{{ seg.color }}" stroke-width="{{ analyst_gauge.stroke }}"></path>
+                                {% endfor %}
+                                {% for seg in analyst_gauge.segments %}
+                                <text class="gauge-label" x="{{ seg.lx }}" y="{{ seg.ly }}" text-anchor="{{ seg.anchor }}">
+                                    {% for line in seg.lines %}<tspan x="{{ seg.lx }}" dy="{{ 0 if loop.first else 10.5 }}">{{ line }}</tspan>{% endfor %}
+                                </text>
+                                {% endfor %}
+                                <g class="gauge-needle" transform="rotate({{ card.needle_angle }} {{ analyst_gauge.cx }} {{ analyst_gauge.cy }})">
+                                    <path d="{{ analyst_gauge.needle }}"></path>
+                                </g>
+                                <circle class="gauge-hub" cx="{{ analyst_gauge.cx }}" cy="{{ analyst_gauge.cy }}" r="{{ analyst_gauge.hub_r }}"></circle>
+                            </svg>
+
+                            <div class="gauge-verdict">{{ card.recommendation }}</div>
+                            {% if card.based_on_text %}<div class="gauge-subtitle">{{ card.based_on_text }}</div>{% endif %}
+
+                            {% if card.has_breakdown %}
+                            <div class="gauge-tooltip" role="tooltip">
+                                <div class="gauge-tooltip-title">Analyst rating</div>
+                                {% for row in card.rating_rows %}
+                                <div class="gauge-tooltip-row">
+                                    <span class="gauge-dot" style="background: {{ row.color }}"></span>
+                                    <span class="gauge-tooltip-label">{{ row.label }}</span>
+                                    <span class="gauge-tooltip-count">{{ row.count }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
                         <div class="analyst-stats">
                             <div class="analyst-stat">
                                 <div class="analyst-stat-label">Current price</div>
@@ -3290,7 +3684,7 @@
             <div class="section-body">
                 <div class="insight-list">
                     {% for summary in llm_summaries %}
-                    <div class="insight-card">
+                    <div class="insight-card{% if summary.brand_rgb %} brand-tint{% endif %}{% if summary.brand_rgb_a and summary.brand_rgb_b %} comparison-brand{% endif %}"{% if summary.brand_rgb %} style="--brand-rgb: {{ summary.brand_rgb }}"{% elif summary.brand_rgb_a and summary.brand_rgb_b %} style="--brand-a: {{ summary.brand_rgb_a }}; --brand-b: {{ summary.brand_rgb_b }}"{% endif %}>
                         <div class="insight-card-header">
                             <h3 class="insight-title">{{ summary.title }}</h3>
                         </div>
@@ -3325,7 +3719,7 @@
             <div class="section-body">
                 <div class="news-grid">
                     {% for group in news_cards %}
-                    <article class="news-group">
+                    <article class="news-group{% if group.brand_rgb %} brand-tint{% endif %}"{% if group.brand_rgb %} style="--brand-rgb: {{ group.brand_rgb }}"{% endif %}>
                         {% if group["items"] %}
                         <div class="news-list">
                             {% for item in group["items"] %}
@@ -3475,6 +3869,21 @@ setInterval(updateClock, 1000);
 const form = $('#analysisForm');
 const runBtn = $('#runButton');
 const overlay = $('#loadingOverlay');
+
+/* AI Summary toggle → keep the hidden summary_mode field (which is what both the
+   FormData request and the no-JS POST submit) in sync with the switch. */
+const summaryToggle = $('#summaryToggle');
+const summaryModeInput = $('#summaryModeInput');
+if (summaryToggle && summaryModeInput) {
+    const summaryText = summaryToggle.parentElement.querySelector('.toggle-text');
+    const syncSummary = () => {
+        const on = summaryToggle.checked;
+        summaryModeInput.value = on ? 'with_summary' : 'no_summary';
+        if (summaryText) summaryText.textContent = on ? 'On' : 'Off';
+    };
+    summaryToggle.addEventListener('change', syncSummary);
+    syncSummary();
+}
 
 /* ── Live execution console: stream the agent trace while the run is in flight,
    then navigate to the finished dashboard. Falls back to a plain POST if the

@@ -266,6 +266,160 @@ def logo_url_for_ticker(ticker, website=None):
     return candidates[0] if candidates else None
 
 
+# ── Brand-color extraction ───────────────────────────────────────────────────
+# A card can be tinted with the company's own brand hue (e.g. Oracle red) by
+# pulling the dominant *vivid* color out of its logo. Logos are mostly white
+# backgrounds and black text, so grayscale and near-white/near-black pixels are
+# discarded and the most common saturated hue wins. The verdict is cached on
+# disk per ticker — a color never changes — so the logo is downloaded at most
+# once. Tickers whose logo has no vivid color (monochrome marks like Apple) get
+# a blank cache entry and simply render with the default card surface.
+_BRAND_CACHE_PATH = Path("output") / "brand_color_cache.json"
+_brand_cache = None
+_brand_cache_lock = threading.Lock()
+
+
+def _load_brand_cache():
+    global _brand_cache
+    if _brand_cache is None:
+        try:
+            with open(_BRAND_CACHE_PATH, "r", encoding="utf-8") as f:
+                _brand_cache = json.load(f)
+        except Exception:
+            _brand_cache = {}
+    return _brand_cache
+
+
+def _save_brand_cache():
+    try:
+        _BRAND_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_BRAND_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(_brand_cache, f, indent=2, sort_keys=True)
+    except Exception:
+        pass
+
+
+def _dominant_brand_color(data):
+    """Extract the most representative vivid color from logo bytes as "r,g,b".
+
+    Ignores transparent, near-white, near-black, and low-saturation (gray)
+    pixels, buckets the rest by coarse hue, then averages the exact pixels of
+    the most populous bucket for a smooth, on-brand tint. Returns None when the
+    logo has no meaningful color (e.g. a black-and-white wordmark).
+    """
+    try:
+        from collections import Counter
+
+        from PIL import Image
+
+        im = Image.open(io.BytesIO(data)).convert("RGBA").resize((48, 48))
+    except Exception:
+        return None
+
+    buckets = Counter()
+    members = {}
+    for (r, g, b, a) in im.getdata():
+        if a < 128:
+            continue
+        hi, lo = max(r, g, b), min(r, g, b)
+        if hi > 240 and lo > 240:      # near-white
+            continue
+        if hi < 28:                     # near-black
+            continue
+        if hi == 0 or (hi - lo) / hi < 0.22:   # grayscale / washed out
+            continue
+        key = (r // 24, g // 24, b // 24)
+        buckets[key] += 1
+        members.setdefault(key, []).append((r, g, b))
+
+    if not buckets:
+        return None
+
+    key, _ = buckets.most_common(1)[0]
+    pixels = members[key]
+    n = len(pixels)
+    r = sum(p[0] for p in pixels) // n
+    g = sum(p[1] for p in pixels) // n
+    b = sum(p[2] for p in pixels) // n
+    return f"{r},{g},{b}"
+
+
+def brand_color_for_ticker(ticker, logo_url=None, allow_network=True):
+    """Cached "r,g,b" brand color for a ticker, or None if it has no vivid hue.
+
+    Downloads the ticker's best logo (reusing the same source the card shows)
+    once and caches the extracted color. Transient network/decoding failures
+    are left uncached so a later run can retry.
+    """
+    symbol = str(ticker or "").strip().upper()
+    if not symbol:
+        return None
+
+    cache = _load_brand_cache()
+    if symbol in cache:
+        return cache[symbol] or None
+
+    if not allow_network:
+        return None
+
+    url = logo_url or logo_url_for_ticker(symbol)
+    if not url:
+        return None
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            color = _dominant_brand_color(resp.read())
+    except Exception:
+        return None   # transient — retry next time rather than caching a miss
+
+    with _brand_cache_lock:
+        cache[symbol] = color or ""
+        _save_brand_cache()
+    return color
+
+
+def _fetch_rating_counts(ticker_obj):
+    """Per-rating analyst counts (Strong Buy … Strong Sell) for the most recent
+    period, or None when yfinance has no recommendation breakdown.
+
+    yfinance's `recommendations` frame has one row per period ('0m' is the
+    current month) with strongBuy/buy/hold/sell/strongSell columns.
+    """
+    try:
+        df = ticker_obj.recommendations
+    except Exception:
+        return None
+
+    if df is None or len(df) == 0:
+        return None
+
+    try:
+        row = df.iloc[0]
+        if "period" in df.columns:
+            current = df[df["period"] == "0m"]
+            if len(current):
+                row = current.iloc[0]
+
+        def _count(name):
+            try:
+                return max(int(row.get(name, 0) or 0), 0)
+            except (TypeError, ValueError):
+                return 0
+
+        counts = {
+            "strong_buy": _count("strongBuy"),
+            "buy": _count("buy"),
+            "hold": _count("hold"),
+            "sell": _count("sell"),
+            "strong_sell": _count("strongSell"),
+        }
+    except Exception:
+        return None
+
+    return counts if sum(counts.values()) > 0 else None
+
+
 def fetch_analyst_view(ticker, latest_close=None):
     """
     Fetch analyst recommendation and price-target data when yfinance provides it.
@@ -275,8 +429,9 @@ def fetch_analyst_view(ticker, latest_close=None):
     symbol = ticker.upper()
     latest_close = _as_float(latest_close)
 
+    ticker_obj = yf.Ticker(symbol)
     try:
-        info = yf.Ticker(symbol).get_info() or {}
+        info = ticker_obj.get_info() or {}
     except Exception as exc:
         return {
             "ticker": symbol,
@@ -288,6 +443,10 @@ def fetch_analyst_view(ticker, latest_close=None):
     recommendation = _format_recommendation(info.get("recommendationKey"))
     website = info.get("website")
     analyst_count = info.get("numberOfAnalystOpinions")
+    # recommendationMean is a 1–5 score (1 = Strong Buy … 5 = Strong Sell); it
+    # gives the gauge a smooth needle position rather than a snapped bucket.
+    recommendation_mean = _as_float(info.get("recommendationMean"))
+    rating_counts = _fetch_rating_counts(ticker_obj)
     target_mean = _as_float(info.get("targetMeanPrice"))
     target_low = _as_float(info.get("targetLowPrice"))
     target_high = _as_float(info.get("targetHighPrice"))
@@ -306,6 +465,8 @@ def fetch_analyst_view(ticker, latest_close=None):
         "ticker": symbol,
         "available": available,
         "recommendation": recommendation,
+        "recommendation_mean": recommendation_mean,
+        "rating_counts": rating_counts,
         "website": website,
         "logo_url": logo_url_for_ticker(symbol, website),
         "analyst_count": analyst_count,
