@@ -459,39 +459,42 @@ def build_report_metric_card(ticker, metrics, logo_url=None):
         ],
     }
 
-def build_llm_summary_card(title, text):
-    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
-    takeaways = []
-    narrative_lines = []
-    disclaimer = None
-    in_takeaways = False
+# Tone chip labels for the AI insight cards ("positive" reads as a stance the
+# app shouldn't take; desk-note language stays on the right side of advice).
+TONE_LABELS = {
+    "positive": "Constructive",
+    "negative": "Cautious",
+    "mixed": "Mixed",
+    "neutral": "Neutral",
+}
 
-    for line in lines:
-        normalized = line.strip("*").strip()
 
-        if "key takeaway" in normalized.lower():
-            in_takeaways = True
-            continue
+def build_llm_summary_card(title, summary):
+    """Shape a structured LLM summary (see tools/llm_client.py) for the
+    template. Plain strings (a legacy summary or an unexpected model reply)
+    degrade to a narrative-only card."""
+    if isinstance(summary, str):
+        summary = {"narrative": summary.strip(), "tone": "neutral"}
 
-        if normalized.lower().startswith("not financial advice"):
-            disclaimer = normalized
-            continue
-
-        if line.startswith("-"):
-            takeaways.append(line.lstrip("-").strip())
-            in_takeaways = True
-            continue
-
-        if in_takeaways:
-            takeaways.append(normalized)
-        else:
-            narrative_lines.append(normalized)
+    tone = summary.get("tone") or "neutral"
+    takeaways = [
+        {
+            "text": item.get("text", ""),
+            "sentiment": item.get("sentiment", "neutral"),
+        }
+        for item in (summary.get("takeaways") or [])
+        if isinstance(item, dict) and item.get("text")
+    ]
 
     return {
         "title": title,
-        "summary": " ".join(narrative_lines).strip(),
+        "verdict": summary.get("verdict"),
+        "tone": tone,
+        "tone_label": TONE_LABELS.get(tone, "Neutral"),
+        "summary": summary.get("narrative", ""),
         "takeaways": takeaways,
-        "disclaimer": disclaimer or "Not financial advice.",
+        "risk": summary.get("risk"),
+        "disclaimer": "Not financial advice.",
     }
 
 def _format_duration(ms):
@@ -774,6 +777,58 @@ def watchlist_summary():
         "errors": errors,
         "updated_at": datetime.now().isoformat(timespec="seconds"),
     })
+
+
+# Typeahead suggestions hit Yahoo's search endpoint on (debounced) keystrokes,
+# so repeated queries are served from this small TTL cache instead of the
+# network — both for speed and to stay clear of Yahoo throttling.
+_SYMBOL_SEARCH_TTL = 600
+_SYMBOL_SEARCH_MAX_ENTRIES = 500
+_symbol_search_cache = {}
+_symbol_search_lock = threading.Lock()
+
+# Quote types that make sense in a watchlist; filters out options, futures, etc.
+_SEARCHABLE_QUOTE_TYPES = {"EQUITY", "ETF", "CRYPTOCURRENCY", "INDEX", "MUTUALFUND"}
+
+
+@app.route("/api/symbol-search")
+def symbol_search():
+    """Symbol suggestions for the watchlist add box (Google-style typeahead)."""
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return jsonify({"results": []})
+    cache_key = query.upper()
+
+    now = time.time()
+    with _symbol_search_lock:
+        cached = _symbol_search_cache.get(cache_key)
+        if cached and now - cached[1] < _SYMBOL_SEARCH_TTL:
+            return jsonify({"results": cached[0]})
+
+    try:
+        quotes = yf.Search(query, max_results=8, news_count=0).quotes or []
+    except Exception:
+        # Don't cache failures — the next keystroke should retry.
+        return jsonify({"results": []})
+
+    results = []
+    for quote in quotes:
+        symbol = str(quote.get("symbol") or "").strip().upper()
+        if not symbol or quote.get("quoteType") not in _SEARCHABLE_QUOTE_TYPES:
+            continue
+        results.append({
+            "symbol": symbol,
+            "name": quote.get("longname") or quote.get("shortname") or "",
+            "exchange": quote.get("exchDisp") or "",
+            "type": quote.get("typeDisp") or "",
+        })
+
+    with _symbol_search_lock:
+        if len(_symbol_search_cache) >= _SYMBOL_SEARCH_MAX_ENTRIES:
+            _symbol_search_cache.clear()
+        _symbol_search_cache[cache_key] = (results, now)
+
+    return jsonify({"results": results})
 
 
 @app.route("/watchlist/add", methods=["POST"])

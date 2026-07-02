@@ -6,7 +6,7 @@
     <title>FinAgent — AI Stock Analyzer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         // Apply saved theme before first paint to prevent flash
         (function() {
@@ -62,7 +62,7 @@
             --radius-lg:      14px;
             --radius-xl:      20px;
 
-            --font-mono:      'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            --font-mono:      'IBM Plex Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
 
             /* ── Theme-switch tokens (light defaults) ── */
             --body-bg:            linear-gradient(145deg, #EBF3FF 0%, #F3EEFF 46%, #EAF8F3 100%);
@@ -200,7 +200,10 @@
         html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 
         body {
-            font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            /* Tabular figures everywhere: live prices keep their width when
+               digits tick over, so nothing jitters or reflows. */
+            font-variant-numeric: tabular-nums;
             background: var(--body-bg);
             background-attachment: fixed;
             color: var(--text);
@@ -1957,7 +1960,7 @@
             color: var(--text);
         }
 
-        .chart-stat span { color: var(--text-dim); font-family: Inter, sans-serif; }
+        .chart-stat span { color: var(--text-dim); font-family: 'IBM Plex Sans', sans-serif; }
 
         .chart-stat.positive { background: var(--green-dim); border-color: rgba(16,185,129,0.2); color: var(--green-text); }
         .chart-stat.negative { background: var(--rose-dim);  border-color: rgba(244,63,94,0.2);  color: var(--rose-text); }
@@ -2040,7 +2043,7 @@
             fill: var(--text-muted);
             font-size: 10px;
             font-weight: 700;
-            font-family: Inter, 'Segoe UI', sans-serif;
+            font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
         }
 
         .gauge-needle path { fill: var(--text-strong); }
@@ -2241,6 +2244,53 @@
             background: var(--cyan);
             box-shadow: 0 0 6px var(--cyan-glow);
         }
+
+        /* Sentiment-coded takeaway dots (default cyan = neutral framing) */
+        .takeaway-list li.tk-positive::before { background: var(--green); box-shadow: 0 0 6px var(--green-dim); }
+        .takeaway-list li.tk-negative::before { background: var(--rose); box-shadow: 0 0 6px var(--rose-dim); }
+        .takeaway-list li.tk-neutral::before { background: var(--text-dim); box-shadow: none; }
+
+        /* Overall-tone chip in the card header */
+        .tone-chip {
+            flex-shrink: 0;
+            padding: 4px 10px;
+            border-radius: 99px;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            background: var(--surface);
+        }
+        .tone-chip.tone-positive { color: var(--green-text); background: var(--green-dim); border-color: rgba(16,185,129,0.3); }
+        .tone-chip.tone-negative { color: var(--rose-text); background: var(--rose-dim); border-color: rgba(244,63,94,0.3); }
+        .tone-chip.tone-mixed { color: var(--amber); background: var(--amber-dim); border-color: rgba(217,119,6,0.3); }
+
+        /* Headline call, sits between the title and the narrative */
+        .insight-verdict {
+            margin: -6px 0 10px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-strong);
+        }
+
+        /* Biggest-risk callout */
+        .insight-risk {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 0 0 14px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(217,119,6,0.25);
+            background: var(--amber-dim);
+            font-size: 12.5px;
+            line-height: 1.5;
+            color: var(--text);
+        }
+        .insight-risk svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--amber); }
+        .insight-risk strong { color: var(--amber); font-weight: 800; }
 
         .insight-disclaimer {
             margin: 0;
@@ -2603,8 +2653,10 @@
             animation: pulse-dot 2s ease-in-out infinite;
         }
 
-        /* Add form — stacked, ticker on its own row */
-        .wl-add { display: flex; flex-direction: column; gap: 8px; }
+        /* Add form — stacked, ticker on its own row. z-index lifts it above its
+           panel siblings (each forced to z-index:1 by `.wl-panel > *`) so the
+           typeahead dropdown paints over the holdings list below it. */
+        .wl-add { display: flex; flex-direction: column; gap: 8px; z-index: 2; }
         .wl-add-row { display: flex; gap: 8px; }
 
         .wl-input {
@@ -2626,6 +2678,68 @@
         .wl-input-ticker { text-transform: uppercase; }
         .wl-input-ticker::placeholder { text-transform: none; }
         .wl-input-shares { flex: 1 1 auto; min-width: 0; }
+
+        /* Typeahead suggestions under the ticker input */
+        .wl-ticker-wrap { position: relative; }
+        .wl-suggest {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 60;
+            padding: 4px;
+            background: var(--tooltip-bg);
+            border: 1px solid var(--tooltip-border);
+            border-radius: var(--radius);
+            box-shadow: var(--tooltip-shadow);
+            backdrop-filter: blur(16px) saturate(150%);
+            max-height: 296px;
+            overflow-y: auto;
+        }
+        .wl-suggest-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+        .wl-suggest-item.active { background: var(--cyan-dim); }
+        .wl-suggest-sym {
+            flex-shrink: 0;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            font-weight: 800;
+            color: var(--text-strong);
+        }
+        .wl-suggest-name {
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wl-suggest-badge {
+            flex-shrink: 0;
+            padding: 2px 7px;
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .wl-suggest mark { background: none; color: var(--cyan); }
+        .wl-suggest-empty {
+            padding: 9px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-dim);
+        }
 
         .wl-add-btn {
             height: 38px;
@@ -3687,12 +3801,20 @@
                     <div class="insight-card{% if summary.brand_rgb %} brand-tint{% endif %}{% if summary.brand_rgb_a and summary.brand_rgb_b %} comparison-brand{% endif %}"{% if summary.brand_rgb %} style="--brand-rgb: {{ summary.brand_rgb }}"{% elif summary.brand_rgb_a and summary.brand_rgb_b %} style="--brand-a: {{ summary.brand_rgb_a }}; --brand-b: {{ summary.brand_rgb_b }}"{% endif %}>
                         <div class="insight-card-header">
                             <h3 class="insight-title">{{ summary.title }}</h3>
+                            {% if summary.tone %}<span class="tone-chip tone-{{ summary.tone }}">{{ summary.tone_label }}</span>{% endif %}
                         </div>
+                        {% if summary.verdict %}<div class="insight-verdict">{{ summary.verdict }}</div>{% endif %}
                         {% if summary.summary %}<p class="insight-summary">{{ summary.summary }}</p>{% endif %}
                         {% if summary.takeaways %}
                         <ul class="takeaway-list">
-                            {% for item in summary.takeaways %}<li>{{ item }}</li>{% endfor %}
+                            {% for item in summary.takeaways %}<li class="tk-{{ item.sentiment }}">{{ item.text }}</li>{% endfor %}
                         </ul>
+                        {% endif %}
+                        {% if summary.risk %}
+                        <div class="insight-risk">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <span><strong>Watch:</strong> {{ summary.risk }}</span>
+                        </div>
                         {% endif %}
                         <p class="insight-disclaimer">{{ summary.disclaimer }}</p>
                     </div>
@@ -3790,7 +3912,11 @@
 
             <!-- Add form -->
             <form class="wl-add" id="wlAddForm" autocomplete="off">
-                <input class="wl-input wl-input-ticker" id="wlTicker" name="ticker" placeholder="Add ticker (e.g. NVDA)" aria-label="Ticker" maxlength="12">
+                <div class="wl-ticker-wrap">
+                    <input class="wl-input wl-input-ticker" id="wlTicker" name="ticker" placeholder="Search ticker or company…" aria-label="Ticker" maxlength="24"
+                           role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="wlSuggest">
+                    <div class="wl-suggest" id="wlSuggest" role="listbox" aria-label="Ticker suggestions" hidden></div>
+                </div>
                 <div class="wl-add-row">
                     <input class="wl-input wl-input-shares" id="wlShares" name="shares" type="number" step="any" min="0" placeholder="Shares (optional)" aria-label="Shares">
                     <button type="submit" class="wl-add-btn" id="wlAddBtn">Add</button>
@@ -4471,9 +4597,143 @@ function wlLogoError(img) {
         return res.json().catch(() => ({ ok: false, error: 'Request failed.' }));
     }
 
+    /* — Ticker typeahead (Google-style suggestions) — */
+    const suggestEl = $('#wlSuggest');
+    const sgCache = new Map();      // UPPER(query) -> results, session-lifetime
+    let sgItems = [];               // results currently rendered in the dropdown
+    let sgActive = -1;              // keyboard-highlighted index
+    let sgSeq = 0;                  // request stamp so stale responses are dropped
+    let sgTimer = null;
+
+    function hideSuggest() {
+        clearTimeout(sgTimer);
+        sgSeq++;
+        suggestEl.hidden = true;
+        suggestEl.innerHTML = '';
+        sgItems = [];
+        sgActive = -1;
+        tickerEl.setAttribute('aria-expanded', 'false');
+        tickerEl.removeAttribute('aria-activedescendant');
+    }
+
+    // Bold the part of the suggestion that matches what's been typed so far.
+    function markMatch(text, query) {
+        const idx = text.toUpperCase().indexOf(query.toUpperCase());
+        if (idx === -1) return esc(text);
+        return esc(text.slice(0, idx)) +
+            `<mark>${esc(text.slice(idx, idx + query.length))}</mark>` +
+            esc(text.slice(idx + query.length));
+    }
+
+    function renderSuggest(results, query) {
+        sgItems = results;
+        sgActive = -1;
+        tickerEl.removeAttribute('aria-activedescendant');
+        if (!results.length) {
+            // Only announce "no matches" once the query is unambiguous typing,
+            // not a single stray character.
+            if (query.length < 2) { hideSuggest(); return; }
+            suggestEl.innerHTML = `<div class="wl-suggest-empty">No matches for “${esc(query)}”.</div>`;
+        } else {
+            suggestEl.innerHTML = results.map((r, i) => `
+                <div class="wl-suggest-item" role="option" id="wlSuggestOpt${i}" data-idx="${i}" aria-selected="false">
+                    <span class="wl-suggest-sym">${markMatch(r.symbol, query)}</span>
+                    <span class="wl-suggest-name">${markMatch(r.name, query)}</span>
+                    <span class="wl-suggest-badge">${esc(r.exchange || r.type || '')}</span>
+                </div>`).join('');
+        }
+        suggestEl.hidden = false;
+        tickerEl.setAttribute('aria-expanded', 'true');
+    }
+
+    function setSuggestActive(idx) {
+        sgActive = idx;
+        suggestEl.querySelectorAll('.wl-suggest-item').forEach((el, i) => {
+            el.classList.toggle('active', i === idx);
+            el.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+        });
+        if (idx >= 0) {
+            tickerEl.setAttribute('aria-activedescendant', `wlSuggestOpt${idx}`);
+            const el = suggestEl.querySelector(`#wlSuggestOpt${idx}`);
+            if (el) el.scrollIntoView({ block: 'nearest' });
+        } else {
+            tickerEl.removeAttribute('aria-activedescendant');
+        }
+    }
+
+    function pickSuggest(idx) {
+        const item = sgItems[idx];
+        if (!item) return;
+        tickerEl.value = item.symbol;
+        hideSuggest();
+        sharesEl.focus();
+    }
+
+    async function fetchSuggest(query) {
+        const seq = ++sgSeq;
+        let results = sgCache.get(query.toUpperCase());
+        if (!results) {
+            try {
+                const res = await fetch('/api/symbol-search?q=' + encodeURIComponent(query));
+                const data = await res.json();
+                results = data.results || [];
+                sgCache.set(query.toUpperCase(), results);
+            } catch {
+                results = [];
+            }
+        }
+        // A newer keystroke superseded this request while it was in flight.
+        if (seq !== sgSeq) return;
+        renderSuggest(results, query);
+    }
+
+    function onTickerInput() {
+        clearTimeout(sgTimer);
+        const query = tickerEl.value.trim();
+        if (!query) { hideSuggest(); return; }
+        const cached = sgCache.get(query.toUpperCase());
+        if (cached) { sgSeq++; renderSuggest(cached, query); return; }
+        sgTimer = setTimeout(() => fetchSuggest(query), 250);   // debounce keystrokes
+    }
+
+    tickerEl.addEventListener('input', onTickerInput);
+    tickerEl.addEventListener('focus', onTickerInput);   // reopen on refocus
+    tickerEl.addEventListener('blur', hideSuggest);      // pointerdown below keeps focus, so clicks still land
+
+    tickerEl.addEventListener('keydown', (e) => {
+        if (suggestEl.hidden) return;
+        if (e.key === 'ArrowDown' && sgItems.length) {
+            e.preventDefault();
+            setSuggestActive((sgActive + 1) % sgItems.length);
+        } else if (e.key === 'ArrowUp' && sgItems.length) {
+            e.preventDefault();
+            setSuggestActive((sgActive - 1 + sgItems.length) % sgItems.length);
+        } else if (e.key === 'Enter' && sgActive >= 0) {
+            e.preventDefault();          // pick the highlighted row instead of submitting
+            pickSuggest(sgActive);
+        } else if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Tab') {
+            hideSuggest();               // plain Enter still submits what was typed
+        }
+    });
+
+    // pointerdown (not click) so the pick happens before the input's blur.
+    suggestEl.addEventListener('pointerdown', (e) => {
+        const item = e.target.closest('.wl-suggest-item');
+        if (!item) return;
+        e.preventDefault();
+        pickSuggest(Number(item.dataset.idx));
+    });
+
+    // Hovering with the mouse moves the same highlight the arrow keys use.
+    suggestEl.addEventListener('mouseover', (e) => {
+        const item = e.target.closest('.wl-suggest-item');
+        if (item) setSuggestActive(Number(item.dataset.idx));
+    });
+
     addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         clearError();
+        hideSuggest();
         const ticker = tickerEl.value.trim().toUpperCase();
         const shares = sharesEl.value.trim();
         if (!ticker) return;

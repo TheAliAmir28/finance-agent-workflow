@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tools.llm_client import generate_llm_summary
+from tools.llm_client import generate_llm_summary, summary_to_text
 
 """
 Helper function used by the report generator.
@@ -17,6 +17,86 @@ def _get_start_end_close(price_data):
         return start, end
     except Exception:
         return None, None
+
+
+def _f(value):
+    """float() that passes None through and never raises (also converts
+    numpy scalars, which json can't serialize directly)."""
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_ticker_payload(memory, ticker):
+    """Everything the agent gathered for one ticker, shaped for the LLM.
+
+    The old payload only carried three metrics; the summary could never say
+    more than the metric cards already show. This hands the model the same
+    full picture the dashboard renders — fundamentals, the latest earnings
+    result, analyst consensus, and headlines — so it can actually synthesize.
+    Unavailable sections are omitted entirely (the prompt tells the model to
+    skip what's missing).
+    """
+    metrics = memory.get(f"{ticker}_metrics", {}) or {}
+    fundamentals = memory.get(f"{ticker}_fundamentals") or {}
+    earnings = memory.get(f"{ticker}_earnings") or {}
+    analyst = memory.get(f"{ticker}_analyst_view") or {}
+    news = memory.get(f"{ticker}_news") or []
+    start_close, end_close = _get_start_end_close(memory.get(f"{ticker}_data"))
+
+    payload = {
+        "ticker": ticker,
+        "start_close": start_close,
+        "end_close": end_close,
+        "metrics": {
+            key: _f(metrics.get(key))
+            for key in (
+                "total_return", "volatility", "sharpe_ratio",
+                "annualized_volatility", "annualized_sharpe_ratio",
+                "cagr", "max_drawdown", "ma_20", "ma_50",
+            )
+        },
+    }
+    if fundamentals.get("available"):
+        payload["fundamentals"] = {
+            "company_name": fundamentals.get("company_name"),
+            "sector": fundamentals.get("sector"),
+            "industry": fundamentals.get("industry"),
+            "market_cap": _f(fundamentals.get("market_cap")),
+            "pe_ratio": _f(fundamentals.get("pe_ratio")),
+            "revenue_growth": _f(fundamentals.get("revenue_growth")),
+            "eps": _f(fundamentals.get("eps")),
+            "dividend_yield": _f(fundamentals.get("dividend_yield")),
+        }
+    if earnings.get("available"):
+        payload["latest_earnings"] = {
+            "fiscal_period": earnings.get("fiscal_period"),
+            "eps_actual": _f(earnings.get("eps_actual")),
+            "eps_estimate": _f(earnings.get("eps_estimate")),
+            "eps_surprise": _f(earnings.get("eps_surprise")),
+            "eps_result": earnings.get("eps_result"),
+            "revenue_actual": _f(earnings.get("revenue_actual")),
+            "revenue_surprise": _f(earnings.get("revenue_surprise")),
+            "revenue_result": earnings.get("revenue_result"),
+        }
+    if analyst.get("available"):
+        payload["analyst_consensus"] = {
+            "recommendation": analyst.get("recommendation"),
+            "analyst_count": analyst.get("analyst_count"),
+            "target_mean": _f(analyst.get("target_mean")),
+            "target_low": _f(analyst.get("target_low")),
+            "target_high": _f(analyst.get("target_high")),
+            "current_price": _f(analyst.get("current_price")),
+            "target_upside": _f(analyst.get("upside")),
+        }
+    headlines = [
+        item.get("title") for item in news
+        if isinstance(item, dict) and item.get("title")
+    ]
+    if headlines:
+        payload["recent_headlines"] = headlines[:3]
+    return payload
 
 """
 Turns stored data and metrics into a readable text report.
@@ -80,32 +160,23 @@ class ReportSynthesizer:
             else:
                 report.append("- Sharpe Ratio: N/A")
 
-            # Optional LLM-generated summary
-            price_data = self.memory.get(f"{ticker}_data")
-            start_close, end_close = _get_start_end_close(price_data)
-            # Build a small, clean output for the LLM
+            # Optional LLM-generated summary — hand the model everything the
+            # agent gathered for this ticker, not just the three headline metrics.
             payload = {
                 "mode": "single",
-                "ticker": ticker,
                 "period": period,
-                "metrics": {
-                    "total_return": float(total_return) if total_return is not None else None,
-                    "volatility": float(volatility) if volatility is not None else None,
-                    "sharpe_ratio": sharpe,
-                },
-                "start_close": start_close,
-                "end_close": end_close,
+                **_build_ticker_payload(self.memory, ticker),
             }
             # Check if AI summaries are enabled
             use_llm = self.memory.get("use_llm_summary", True)
-            llm_text = generate_llm_summary(payload, use_llm)
+            llm_summary = generate_llm_summary(payload, use_llm)
 
-            if llm_text:
-                # Store summary for dashboard use
-                self.memory.set(f"{ticker}_llm_summary", llm_text)
+            if llm_summary:
+                # Store the structured summary for dashboard use
+                self.memory.set(f"{ticker}_llm_summary", llm_summary)
                 report.append("")
-                report.append("LLM Summary (Optional):")
-                report.append(llm_text)
+                report.append("AI Summary:")
+                report.append(summary_to_text(llm_summary))
                 report.append("")
 
             else:
@@ -192,36 +263,14 @@ class ReportSynthesizer:
             )
             report.append("")
 
-            # Optional LLM comparison summary
-            price_data_a = self.memory.get(f"{ticker_a}_data")
-            price_data_b = self.memory.get(f"{ticker_b}_data")
-            start_a, end_a = _get_start_end_close(price_data_a)
-            start_b, end_b = _get_start_end_close(price_data_b)
-
+            # Optional LLM comparison summary — full per-ticker context so the
+            # note can weigh fundamentals and street view, not just returns.
             payload = {
                 "mode": "comparison",
                 "period": period,
                 "tickers": [ticker_a, ticker_b],
-                "ticker_a": {
-                    "ticker": ticker_a,
-                    "metrics": {
-                        "total_return": float(tr_a) if tr_a is not None else None,
-                        "volatility": float(vol_a) if vol_a is not None else None,
-                        "sharpe_ratio": sharpe_a,
-                    },
-                    "start_close": start_a,
-                    "end_close": end_a,
-                },
-                "ticker_b": {
-                    "ticker": ticker_b,
-                    "metrics": {
-                        "total_return": float(tr_b) if tr_b is not None else None,
-                        "volatility": float(vol_b) if vol_b is not None else None,
-                        "sharpe_ratio": sharpe_b,
-                    },
-                    "start_close": start_b,
-                    "end_close": end_b,
-                },
+                "ticker_a": _build_ticker_payload(self.memory, ticker_a),
+                "ticker_b": _build_ticker_payload(self.memory, ticker_b),
                 "comparison": {
                     "winner": comparison.get("winner"),
                     "reason": comparison.get("reason"),
@@ -229,7 +278,7 @@ class ReportSynthesizer:
             }
 
             use_llm = self.memory.get("use_llm_summary", True)
-            llm_text = generate_llm_summary(payload, use_llm)
+            llm_summary = generate_llm_summary(payload, use_llm)
 
             # Print comparison result
             winner = comparison.get("winner", "N/A")
@@ -239,10 +288,10 @@ class ReportSynthesizer:
             report.append(f"Reason: {reason}\n")
             report.append("")
 
-            if llm_text:
-                self.memory.set("comparison_llm_summary", llm_text)
-                report.append("LLM Summary (Optional):")
-                report.append(llm_text)
+            if llm_summary:
+                self.memory.set("comparison_llm_summary", llm_summary)
+                report.append("AI Summary:")
+                report.append(summary_to_text(llm_summary))
                 report.append("")
             else: 
                 # Fallback text when AI is disabled

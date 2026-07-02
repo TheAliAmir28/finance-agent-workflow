@@ -51,7 +51,7 @@ def _apply_layout(fig: go.Figure, *, top_margin: int = 18) -> None:
     fig.update_layout(
         paper_bgcolor=_BG,
         plot_bgcolor=_BG,
-        font={"color": _TEXT_FG, "family": "Inter, 'JetBrains Mono', monospace", "size": 12},
+        font={"color": _TEXT_FG, "family": "'IBM Plex Sans', 'IBM Plex Mono', monospace", "size": 12},
         margin={"l": 54, "r": 14, "t": top_margin, "b": 36},
         hovermode="closest",
         hoverlabel={
