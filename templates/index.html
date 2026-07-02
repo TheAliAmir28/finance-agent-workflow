@@ -8,9 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // Apply saved theme before first paint to prevent flash
+        // Apply saved theme before first paint to prevent flash.
+        // Dark is the default; only stay light if the visitor explicitly chose it.
         (function() {
-            if (localStorage.getItem('fa-theme') === 'dark')
+            if (localStorage.getItem('fa-theme') !== 'light')
                 document.documentElement.setAttribute('data-theme', 'dark');
         })();
     </script>
