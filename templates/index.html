@@ -698,57 +698,79 @@
             margin-bottom: 8px;
         }
 
-        .textarea-wrap {
+        /* Single-line command bar: sparkle icon, input, and the Run button all
+           live inside one pill. position:relative + z-index:0 makes the bar a
+           stacking context so the Run button's z-index:-1 hover glow paints
+           above the bar's opaque surface instead of sinking behind it (same
+           trap as the form-group rule below). */
+        .command-bar {
             position: relative;
-        }
-
-        textarea.query-input {
-            width: 100%;
-            min-height: 88px;
-            padding: 14px 16px;
-            border-radius: var(--radius);
+            z-index: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            height: 58px;
+            padding: 0 8px 0 20px;
+            border-radius: 999px;
             border: 1px solid var(--border);
             background: var(--surface);
-            color: var(--text-strong);
-            font-size: 16px;
-            font-family: inherit;
-            resize: vertical;
-            box-sizing: border-box;
             transition: border-color 200ms ease, box-shadow 200ms ease;
-            line-height: 1.5;
         }
 
-        textarea.query-input::placeholder { color: var(--text-dim); }
+        .command-bar-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: var(--text-dim);
+            transition: color 200ms ease;
+        }
 
-        textarea.query-input:focus {
-            outline: none;
+        .command-bar:focus-within {
             border-color: var(--cyan);
             box-shadow: 0 0 0 3px var(--cyan-dim), 0 0 20px rgba(56,189,248,0.1);
         }
 
+        .command-bar:focus-within .command-bar-icon { color: var(--cyan); }
+
+        input.query-input {
+            flex: 1;
+            min-width: 0;
+            height: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-strong);
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        input.query-input::placeholder { color: var(--text-dim); }
+
         .form-controls {
             display: flex;
             flex-wrap: wrap;
-            align-items: flex-end;
-            gap: 12px;
+            align-items: center;
+            gap: 12px 28px;
             margin-top: 14px;
+            padding: 0 10px;
         }
 
         .form-group {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            align-items: center;
+            gap: 10px;
         }
 
-        /* Trap the Run button's z-index:-1 glow above the hero panel in every
+        .form-group .form-label { margin-bottom: 0; }
+
+        /* Trap the toggle's z-index:-1 glow above the hero panel in every
            theme. The hero only forms a stacking context in light mode (via
            backdrop-filter); without this the glow sinks behind the opaque
            panel in dark mode and vanishes. */
-        .form-group:has(.btn-run),
         .form-group:has(.toggle) { position: relative; z-index: 0; }
 
         /* Time range: a dark pill that lights up cyan on hover/focus, matching
-           the textarea's accent-glow language and the Run button's pill shape. */
+           the command bar's accent-glow language and the Run button's pill shape. */
         select.form-select {
             height: 42px;
             padding: 0 40px 0 18px;
@@ -884,8 +906,9 @@
             justify-content: center;
             gap: 8px;
             height: 42px;
-            padding: 0 30px;
+            padding: 0 24px;
             border-radius: 999px;
+            flex-shrink: 0;
             border: 1px solid rgba(255,255,255,0.14);
             background: #1a2338;
             color: #fff;
@@ -2463,6 +2486,9 @@
             .market-indices { display: none; }
             .hero { padding: 24px 20px; }
             .hero h1 { font-size: 28px; }
+            .command-bar { height: 52px; padding: 0 6px 0 14px; gap: 8px; }
+            .command-bar-icon { display: none; }
+            .btn-run { padding: 0 18px; }
             .report-grid { grid-template-columns: 1fr; }
             .report-metric-groups { grid-template-columns: 1fr; }
             .report-metric-group { padding: 0; border: none !important; }
@@ -3291,9 +3317,15 @@
             <p class="hero-sub">Enter any ticker or compare two assets — the agent fetches live data, runs metrics, and generates a full analyst report.</p>
 
             <form method="POST" id="analysisForm">
-                <label class="form-label" for="userInput">Analysis request</label>
-                <div class="textarea-wrap">
-                    <textarea class="query-input" id="userInput" name="user_input" placeholder="e.g. Compare NVDA and AMD  ·  Analyze AAPL">{{ user_input }}</textarea>
+                <div class="command-bar">
+                    <svg class="command-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7a2 2 0 0 0 1.4 1.4L21 12l-5.7 1.9a2 2 0 0 0-1.4 1.4L12 21l-1.9-5.7a2 2 0 0 0-1.4-1.4L3 12l5.7-1.9a2 2 0 0 0 1.4-1.4z"/></svg>
+                    <input class="query-input" type="text" id="userInput" name="user_input" value="{{ user_input }}"
+                           placeholder="Analyze AAPL, or compare NVDA and AMD…"
+                           autocomplete="off" spellcheck="false" aria-label="Analysis request">
+                    <button type="submit" class="btn-run" id="runButton">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Run
+                    </button>
                 </div>
 
                 <div class="form-controls">
@@ -3314,13 +3346,6 @@
                             <span class="toggle-text">{% if selected_summary != 'no_summary' %}On{% else %}Off{% endif %}</span>
                         </label>
                         <input type="hidden" name="summary_mode" id="summaryModeInput" value="{% if selected_summary == 'no_summary' %}no_summary{% else %}with_summary{% endif %}">
-                    </div>
-
-                    <div class="form-group" style="margin-top:auto">
-                        <button type="submit" class="btn-run" id="runButton">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            Run Analysis
-                        </button>
                     </div>
                 </div>
             </form>
