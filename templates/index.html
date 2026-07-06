@@ -22,10 +22,10 @@
             --bg:             #EEF5FF;
             --bg-2:           #E3EEFA;
 
-            --panel:          rgba(255,255,255,0.76);
-            --panel-2:        rgba(255,255,255,0.52);
-            --surface:        rgba(255,255,255,0.60);
-            --surface-hover:  rgba(255,255,255,0.92);
+            --panel:          rgba(255,255,255,0.58);
+            --panel-2:        rgba(255,255,255,0.42);
+            --surface:        rgba(255,255,255,0.50);
+            --surface-hover:  rgba(255,255,255,0.85);
 
             --border:         rgba(2,132,199,0.22);
             --border-strong:  rgba(2,132,199,0.42);
@@ -67,15 +67,17 @@
 
             /* ── Theme-switch tokens (light defaults) ── */
             --body-bg:            linear-gradient(145deg, #EBF3FF 0%, #F3EEFF 46%, #EAF8F3 100%);
-            --topbar-bg:          rgba(255,255,255,0.80);
-            --topbar-border:      rgba(0,0,0,0.08);
-            --topbar-shadow:      0 1px 0 rgba(255,255,255,0.9), 0 2px 16px rgba(0,0,0,0.06);
+            --topbar-bg:          rgba(255,255,255,0.55);
+            --topbar-border:      rgba(255,255,255,0.75);
+            --topbar-shadow:      inset 0 1px 0 rgba(255,255,255,0.95), 0 2px 16px rgba(31,53,90,0.07);
             --section-border:     rgba(255,255,255,0.80);
-            --section-shadow:     0 4px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(255,255,255,0.65), inset 0 1px 0 rgba(255,255,255,0.9);
-            --section-blur:       blur(18px) saturate(150%);
+            --section-shadow:     0 8px 32px rgba(31,53,90,0.10), 0 0 0 1px rgba(255,255,255,0.55), inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(255,255,255,0.35);
+            --section-blur:       blur(24px) saturate(170%);
             --hero-border:        rgba(255,255,255,0.85);
-            --hero-shadow:        0 0 0 1px rgba(255,255,255,0.6), 0 20px 60px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.95);
-            --hero-blur:          blur(20px) saturate(160%);
+            --hero-shadow:        0 0 0 1px rgba(255,255,255,0.55), 0 24px 64px rgba(31,53,90,0.13), inset 0 1px 0 rgba(255,255,255,0.98), inset 0 -1px 0 rgba(255,255,255,0.40);
+            --hero-blur:          blur(28px) saturate(180%);
+            --glass-sheen:        linear-gradient(115deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.12) 30%, transparent 52%);
+            --tape-bg:            rgba(255,255,255,0.40);
             --hero-glow-a:        rgba(2,132,199,0.10);
             --hero-glow-b:        rgba(124,58,237,0.07);
             --shead-bg:           linear-gradient(90deg, rgba(2,132,199,0.06), transparent 60%);
@@ -98,18 +100,19 @@
 
         /* ── Dark theme overrides ── */
         [data-theme="dark"] {
-            /* Cool Graphite: near-neutral surfaces with only a faint cool
-               undertone, so brand tints read true instead of muddying on blue. */
+            /* Night glass: every surface is a translucent frosted pane over the
+               aurora backdrop — low-alpha fills + backdrop blur, with white-alpha
+               edges that read as light catching the rim of the glass. */
             --bg:             #0A0C11;
             --bg-2:           #0E1015;
-            --panel:          #161922;
-            --panel-2:        #1B1F29;
-            --surface:        #14161C;
-            --surface-hover:  #1C1F28;
+            --panel:          rgba(23,28,40,0.52);
+            --panel-2:        rgba(255,255,255,0.055);
+            --surface:        rgba(255,255,255,0.045);
+            --surface-hover:  rgba(255,255,255,0.10);
             /* Default structure is neutral white-alpha; cyan is accent-only. */
-            --border:         rgba(255,255,255,0.09);
-            --border-strong:  rgba(255,255,255,0.16);
-            --border-subtle:  rgba(255,255,255,0.06);
+            --border:         rgba(255,255,255,0.10);
+            --border-strong:  rgba(255,255,255,0.18);
+            --border-subtle:  rgba(255,255,255,0.07);
             --text:           #CDD3DC;
             --text-strong:    #F3F5F9;
             --text-muted:     #7C8593;
@@ -128,25 +131,25 @@
             --purple:         #8B5CF6;
             --purple-dim:     rgba(139,92,246,0.15);
 
-            --body-bg:            #0A0C11;
-            --topbar-bg:          rgba(10,12,17,0.90);
-            --topbar-border:      rgba(255,255,255,0.08);
-            --topbar-shadow:      none;
-            --section-border:     rgba(255,255,255,0.06);
-            --section-shadow:     0 8px 32px rgba(0,0,0,0.34);
-            --section-blur:       none;
-            --hero-border:        rgba(255,255,255,0.10);
-            --hero-shadow:        0 0 0 1px rgba(56,189,248,0.05), 0 24px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
-            --hero-blur:          none;
+            --body-bg:            linear-gradient(160deg, #0A0C11 0%, #0C0F17 48%, #0A0D14 100%);
+            --topbar-bg:          rgba(12,15,22,0.55);
+            --topbar-border:      rgba(255,255,255,0.09);
+            --topbar-shadow:      inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.35);
+            --section-border:     rgba(255,255,255,0.10);
+            --section-shadow:     0 12px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(255,255,255,0.03);
+            --section-blur:       blur(22px) saturate(150%);
+            --hero-border:        rgba(255,255,255,0.13);
+            --hero-shadow:        0 0 0 1px rgba(56,189,248,0.05), 0 28px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(255,255,255,0.04);
+            --hero-blur:          blur(26px) saturate(160%);
             --hero-glow-a:        rgba(56,189,248,0.10);
             --hero-glow-b:        rgba(139,92,246,0.06);
             --shead-bg:           linear-gradient(90deg, rgba(255,255,255,0.03), transparent 60%);
             --card-hover-sh:      0 8px 32px rgba(0,0,0,0.34), 0 0 0 1px var(--border-strong);
-            --tooltip-bg:         rgba(16,18,24,0.97);
-            --tooltip-border:     rgba(255,255,255,0.12);
-            --tooltip-shadow:     0 16px 40px rgba(0,0,0,0.62), 0 0 0 1px rgba(255,255,255,0.05);
+            --tooltip-bg:         rgba(17,21,31,0.78);
+            --tooltip-border:     rgba(255,255,255,0.14);
+            --tooltip-shadow:     0 16px 40px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.10);
             --guide-color:        rgba(56,189,248,0.22);
-            --dot-ring:           rgba(22,25,34,0.95);
+            --dot-ring:           rgba(12,16,26,0.85);
             --insight-bg:         linear-gradient(135deg, rgba(56,189,248,0.04), rgba(139,92,246,0.03));
             --badge-purple-clr:   #C4B5FD;
             --badge-purple-bdr:   rgba(139,92,246,0.28);
@@ -156,22 +159,19 @@
             --featured-sh:        0 0 30px rgba(56,189,248,0.06);
             --scrollbar-clr:      rgba(255,255,255,0.16);
             --scrollbar-hover:    rgba(255,255,255,0.28);
+            --glass-sheen:        linear-gradient(115deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.025) 30%, transparent 52%);
+            --tape-bg:            rgba(13,16,24,0.45);
         }
 
-        /* Dark mode body & ambient overrides */
-        [data-theme="dark"] body {
-            background: #0A0C11;
-        }
-        /* Aurora: soft cyan/indigo/blue color fields that drift slowly. Sits
-           underneath the dot grid (::after) so the pattern floats over it. */
+        /* Aurora: soft cyan/indigo/blue color fields that drift slowly — the
+           color the frosted panes refract. Sits underneath the dot grid
+           (::after) so the pattern floats over it. */
         [data-theme="dark"] body::before {
             background:
-                radial-gradient(40% 44% at 16% 20%, rgba(56,189,248,0.11) 0%, transparent 70%),
-                radial-gradient(44% 48% at 84% 26%, rgba(129,92,246,0.10) 0%, transparent 70%),
-                radial-gradient(50% 54% at 62% 92%, rgba(45,140,255,0.07) 0%, transparent 72%);
+                radial-gradient(40% 44% at 16% 20%, rgba(56,189,248,0.17) 0%, transparent 70%),
+                radial-gradient(44% 48% at 84% 26%, rgba(129,92,246,0.15) 0%, transparent 70%),
+                radial-gradient(50% 54% at 62% 92%, rgba(45,140,255,0.11) 0%, transparent 72%);
             background-size: auto;
-            animation: aurora-drift 34s ease-in-out infinite alternate;
-            will-change: transform;
         }
         /* Refined dot grid, masked to fade toward the edges for depth. */
         [data-theme="dark"] body::after {
@@ -193,7 +193,7 @@
             100% { transform: translate3d(-1%, 1%, 0) scale(1.05); }
         }
         @media (prefers-reduced-motion: reduce) {
-            [data-theme="dark"] body::before { animation: none; }
+            body::before { animation: none; }
         }
 
         /* ── Reset & base ── */
@@ -214,17 +214,21 @@
             overflow-x: hidden;
         }
 
-        /* ── Ambient color blobs ── */
+        /* ── Ambient color blobs — the color fields the glass panes refract.
+           Slightly stronger than a plain wash so the frosting has something
+           to pick up; they drift slowly so the glass feels alive. ── */
         body::before {
             content: '';
             position: fixed;
             inset: 0;
             background:
-                radial-gradient(ellipse 65% 55% at 4% 10%, rgba(124,58,237,0.12) 0%, transparent 55%),
-                radial-gradient(ellipse 55% 65% at 97% 88%, rgba(2,132,199,0.12) 0%, transparent 55%),
-                radial-gradient(ellipse 42% 42% at 52% 98%, rgba(16,185,129,0.07) 0%, transparent 55%);
+                radial-gradient(ellipse 65% 55% at 4% 10%, rgba(124,58,237,0.19) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 65% at 97% 88%, rgba(2,132,199,0.18) 0%, transparent 55%),
+                radial-gradient(ellipse 42% 42% at 52% 98%, rgba(16,185,129,0.12) 0%, transparent 55%);
             pointer-events: none;
             z-index: 0;
+            animation: aurora-drift 38s ease-in-out infinite alternate;
+            will-change: transform;
         }
 
         body::after {
@@ -373,34 +377,23 @@
         }
         .theme-toggle svg { width: 16px; height: 16px; }
 
-        /* ── Ticker tape ── */
+        /* ── Ticker tape — a frosted glass strip. The scrolling items fade out
+           at the edges via a mask on an inner wrapper (not the strip itself,
+           so the glass pane and its edge stay intact full-width). ── */
         .ticker-tape {
             height: 34px;
-            background: var(--bg-2);
+            background: var(--tape-bg);
+            backdrop-filter: blur(14px) saturate(150%);
+            -webkit-backdrop-filter: blur(14px) saturate(150%);
             border-bottom: 1px solid var(--border-subtle);
-            overflow: hidden;
             position: relative;
         }
 
-        .ticker-tape::before,
-        .ticker-tape::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 60px;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        .ticker-tape::before {
-            left: 0;
-            background: linear-gradient(90deg, var(--bg-2), transparent);
-        }
-
-        .ticker-tape::after {
-            right: 0;
-            background: linear-gradient(-90deg, var(--bg-2), transparent);
+        .ticker-tape-mask {
+            height: 100%;
+            overflow: hidden;
+            -webkit-mask-image: linear-gradient(90deg, transparent, #000 64px, #000 calc(100% - 64px), transparent);
+                    mask-image: linear-gradient(90deg, transparent, #000 64px, #000 calc(100% - 64px), transparent);
         }
 
         .ticker-tape-track {
@@ -440,7 +433,9 @@
             justify-content: center;
             align-items: center;
             flex-wrap: wrap;
-            background: var(--bg-2);
+            background: var(--tape-bg);
+            backdrop-filter: blur(14px) saturate(150%);
+            -webkit-backdrop-filter: blur(14px) saturate(150%);
             border-bottom: 1px solid var(--border-subtle);
             padding: 0 16px;
         }
@@ -909,15 +904,18 @@
             padding: 0 24px;
             border-radius: 999px;
             flex-shrink: 0;
-            border: 1px solid rgba(255,255,255,0.14);
-            background: #1a2338;
+            border: 1px solid rgba(255,255,255,0.16);
+            /* Near-opaque by design: the hover glow layers sit at z-index -1 and
+               must stay hidden behind the fill. The vertical gradient + inset
+               top highlight give it the polished-glass read without opening it up. */
+            background: linear-gradient(180deg, #222c47 0%, #161e33 100%);
             color: #fff;
             font-size: 14px;
             font-weight: 800;
             font-family: inherit;
             cursor: pointer;
             white-space: nowrap;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18);
             transition: border-color 220ms ease, box-shadow 220ms ease;
         }
 
@@ -988,9 +986,9 @@
             position: fixed;
             inset: 0;
             z-index: 200;
-            background: rgba(5,10,18,0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background: rgba(5,10,18,0.70);
+            backdrop-filter: blur(14px) saturate(120%);
+            -webkit-backdrop-filter: blur(14px) saturate(120%);
             align-items: center;
             justify-content: center;
             padding: 24px;
@@ -1005,10 +1003,12 @@
             max-height: min(82vh, 720px);
             display: flex;
             flex-direction: column;
-            background: var(--panel);
+            background: var(--tooltip-bg);
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
             border: 1px solid var(--border-strong);
             border-radius: var(--radius-lg);
-            box-shadow: 0 24px 70px rgba(0,0,0,0.45), 0 0 0 1px var(--border);
+            box-shadow: 0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10);
             overflow: hidden;
             animation: lc-pop .35s cubic-bezier(.34,1.2,.4,1) both;
         }
@@ -1104,6 +1104,17 @@
             pointer-events: none;
             animation: section-glow-pulse 9s ease-in-out infinite,
                        section-glow-shift 24s ease-in-out infinite alternate;
+        }
+
+        /* Specular sheen: the soft diagonal light streak real glass catches
+           across its face. Sits between the glow (::before) and the content. */
+        .section::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: var(--glass-sheen);
+            pointer-events: none;
         }
 
         /* Keep section content above the glow. */
@@ -1456,7 +1467,9 @@
             border-radius: var(--radius-lg);
             border: 1px solid rgba(244,63,94,0.3);
             background: rgba(244,63,94,0.07);
-            box-shadow: 0 0 30px rgba(244,63,94,0.1);
+            backdrop-filter: var(--section-blur);
+            -webkit-backdrop-filter: var(--section-blur);
+            box-shadow: 0 0 30px rgba(244,63,94,0.1), inset 0 1px 0 rgba(255,255,255,0.10);
         }
 
         .error-icon {
@@ -1997,7 +2010,9 @@
             min-height: 380px;
             border-radius: var(--radius-sm);
             overflow: hidden;
-            background: var(--panel);
+            /* Transparent: the plot paints straight onto the glass card
+               (the figure itself is relayouted to a transparent paper). */
+            background: transparent;
         }
 
         .chart-card.featured .interactive-chart { min-height: 420px; }
@@ -2542,6 +2557,16 @@
                        section-glow-shift 24s ease-in-out infinite alternate;
         }
 
+        /* Same specular sheen as the sections. */
+        .wl-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: var(--glass-sheen);
+            pointer-events: none;
+        }
+
         .wl-panel > * { position: relative; z-index: 1; }
 
         /* Offset the Recent Runs panel so it doesn't pulse in sync with the watchlist. */
@@ -2781,9 +2806,9 @@
             cursor: pointer;
             flex-shrink: 0;
             transition: transform 160ms ease, box-shadow 160ms ease;
-            box-shadow: 0 4px 16px rgba(56,189,248,0.3);
+            box-shadow: 0 4px 16px rgba(56,189,248,0.3), inset 0 1px 0 rgba(255,255,255,0.40);
         }
-        .wl-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(56,189,248,0.45); }
+        .wl-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(56,189,248,0.45), inset 0 1px 0 rgba(255,255,255,0.40); }
         .wl-add-btn:disabled { opacity: 0.6; cursor: wait; transform: none; box-shadow: none; }
 
         .wl-error {
@@ -3260,6 +3285,7 @@
 
 <!-- ── Ticker tape ── -->
 <div class="ticker-tape" aria-hidden="true">
+    <div class="ticker-tape-mask">
     <div class="ticker-tape-track" id="tickerTape">
         {% set tape_items = [
             ("AAPL","—","—"),("NVDA","—","—"),("MSFT","—","—"),("AMZN","—","—"),
@@ -3283,6 +3309,7 @@
             <span class="tape-change" data-tape-change="{{ sym }}">{{ chg }}</span>
         </div>
         {% endfor %}
+    </div>
     </div>
 </div>
 
@@ -5350,8 +5377,9 @@ function attachHover(chartEl, traces) {
 function relayoutChartForTheme(el, dark) {
     if (!window.Plotly || !el._fullLayout) return;
     Plotly.relayout(el, {
-        paper_bgcolor:           dark ? '#0A1221'                  : '#F8FBFF',
-        plot_bgcolor:            dark ? '#0A1221'                  : '#F8FBFF',
+        // Transparent paper/plot: the chart renders directly on the glass card.
+        paper_bgcolor:           'rgba(0,0,0,0)',
+        plot_bgcolor:            'rgba(0,0,0,0)',
         'font.color':            dark ? '#C8D8F0'                  : '#334155',
         'xaxis.tickfont.color':  dark ? '#5E7A9A'                  : '#64748B',
         'xaxis.linecolor':       dark ? 'rgba(56,189,248,0.16)'    : 'rgba(2,132,199,0.18)',
@@ -5403,9 +5431,10 @@ function renderInteractiveCharts() {
         const dark = document.documentElement.getAttribute('data-theme') === 'dark';
         Plotly.newPlot(el, fig.data, fig.layout, plotlyConfig).then(() => {
             attachHover(el, fig.data);
-            // Charts are always generated with light colours server-side;
-            // apply the correct palette immediately if dark mode is active.
-            if (dark) relayoutChartForTheme(el, true);
+            // Charts are generated with opaque light colours server-side;
+            // re-theme immediately in BOTH modes so the paper goes transparent
+            // and the plot sits on the glass card.
+            relayoutChartForTheme(el, dark);
 
             // The cards fade in with a transform animation, so the container's
             // final width isn't settled when Plotly first measures it — leaving

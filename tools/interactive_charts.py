@@ -11,7 +11,8 @@ from tools.crypto import is_crypto_symbol
 
 CHART_COLORS = ["#0EA5E9", "#F97316", "#7C3AED", "#10B981"]
 
-_BG      = "#F8FBFF"
+# Transparent paper/plot: charts render directly on the glass card behind them.
+_BG      = "rgba(0,0,0,0)"
 _GRID    = "rgba(0,0,0,0.055)"
 _LINE    = "rgba(2,132,199,0.18)"
 _TICK    = "#64748B"
