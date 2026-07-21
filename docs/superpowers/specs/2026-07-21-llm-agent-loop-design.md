@@ -97,8 +97,9 @@ recorded as unavailable/skipped.
 
 After the loop, plain code walks the run's tickers and directly invokes the
 dispatch wrapper for any required step whose memory key is missing. Backfilled
-steps are recorded in the trace under a distinct `backfill` tool id (honestly
-labeled in the UI). Guarantees the dashboard is never half-empty.
+steps are recorded in the trace under the step's real tool id with an honest
+`Backfill: ` label prefix — the UI needs no new tool ids or template changes.
+Guarantees the dashboard is never half-empty.
 
 ## Guardrails
 
@@ -115,9 +116,9 @@ labeled in the UI). Guarantees the dashboard is never half-empty.
 - `main.py::run_analysis_from_request` routes: LLM path when a key is present,
   regex path otherwise or on LLM failure. Run metadata (`tickers`, `period`)
   comes from `finish` (LLM path) or the task list (fallback path).
-- `app.py`: import symbol search from `tools/symbol_search.py`; add
-  `backfill` (and an `agent` planner-round label) to `TOOL_LABELS`. No other
-  route/template changes.
+- `app.py`: import symbol search from `tools/symbol_search.py`. No other
+  route/template changes — trace events reuse the existing tool ids
+  (`planner`, `data`, `metrics`, …), so `TOOL_LABELS` is untouched.
 
 ## Trace UI
 
