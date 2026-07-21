@@ -2,14 +2,15 @@
 
 # Finance Agent Workflow
 
-### An agentic, multi-tool market-research platform that turns one plain-English request into a full equities & crypto research workspace — live in production on AWS.
+### An LLM agent that turns one plain-English request into a full equities & crypto research workspace — the model calls 10+ market-data tools itself, live in production on AWS.
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-Web_App-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Gunicorn](https://img.shields.io/badge/Gunicorn-WSGI-499848?style=for-the-badge&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
 [![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS-Elastic_Beanstalk-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/elasticbeanstalk/)
 [![Plotly](https://img.shields.io/badge/Plotly-Interactive_Charts-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-AI_Summaries-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Tool--Calling_Agent-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/)
+[![Tests](https://img.shields.io/badge/Tests-pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
 
 **[▶ Live Demo](https://askfinagent.com)** — running on AWS Elastic Beanstalk
 
@@ -32,7 +33,7 @@ Plan analyses from natural language, compare performance, inspect live prices, t
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Deployment](#deployment)
-- [Optional AI Summaries](#optional-ai-summaries)
+- [OpenAI Integration](#openai-integration)
 - [Project Structure](#project-structure)
 - [What This Project Demonstrates](#what-this-project-demonstrates)
 - [Limitations](#limitations)
@@ -88,7 +89,9 @@ flowchart LR
 
 | Feature | What It Does |
 | --- | --- |
-| Agentic task planning | Parses prompts like `Analyze AAPL and NVDA` or `Compare BTC and ETH from Jan 2024 to June 2024` into a structured, executable task plan. |
+| LLM tool-calling agent | The model reads the request and decides which of 10+ tools to call, in what order — resolving names to tickers, fetching prices, computing metrics, and pulling analyst/earnings/fundamentals/news data. Understands messy prompts like `Compare Apple vs Nvidia over 6 months` or `How did the maker of the iPhone do this year?`. |
+| Deterministic safety net | A completion check backfills any step the model skips, hard caps on iterations and tool calls bound cost, and a regex planner takes over with no API key — so every run finishes with a complete workspace. |
+| Live execution trace | A streaming panel replays the agent loop step by step — each model decision and tool call with real timing and status — turning the run into a transparent trace instead of a black box. |
 | Stocks and crypto | Supports equities plus crypto aliases such as `BTC`, `ETH`, `Bitcoin`, and `Ethereum` through normalized `yfinance` tickers. |
 | Live watchlist | Persistent watchlist (with optional share holdings) showing live prices, value-weighted daily P/L, position values, and an auto-generated leader/laggard narrative. |
 | Real-time quotes | Browser polling backed by concurrent quote endpoints (`ThreadPoolExecutor`, up to 20 parallel fetches) plus a bulk live market ticker tape. |
@@ -102,6 +105,7 @@ flowchart LR
 | Optional AI summaries | OpenAI-generated plain-English summaries that degrade gracefully when the key or API is unavailable. |
 | Recent runs | Saves previous analyses and lets you rerun them directly from the UI. |
 | Resilient by design | Every external call is isolated so missing fundamentals, earnings, or analyst data never breaks a run. |
+| Tested | An offline `pytest` suite covers the agent loop, tool dispatch, caps, and fallback routing — OpenAI and `yfinance` are faked, so no key or network is needed. |
 
 ---
 
@@ -147,6 +151,8 @@ Recent ticker-related headlines are pulled into the same workflow so research co
 
 ## Demo Prompts
 
+Straightforward requests:
+
 ```text
 Analyze AAPL and NVDA
 Analyze BTC and ETH
@@ -154,6 +160,15 @@ Analyze MSFT and GOOGL for 6 months
 Analyze TSLA for 3 months no summary
 Compare Bitcoin and Ethereum over 1 year
 Analyze AAPL from 2024-01 to 2024-06
+```
+
+Because an LLM agent parses the request, it also handles messy, conversational phrasing that a keyword parser can't — company names instead of tickers, typos, and casual comparisons:
+
+```text
+Compare Apple vs Nvidia over the last 6 months
+How did the maker of the iPhone do this year?
+Stack Costco up against that big-box rival Walmart
+Take a look at Nvidea for me       # typo — resolved to NVDA
 ```
 
 The app also includes dropdown controls for:
@@ -271,11 +286,18 @@ Deployment notes:
 
 ---
 
-## Optional AI Summaries
+## OpenAI Integration
 
-The app works without an OpenAI API key — AI summaries are optional and can be toggled off from the UI. When a key is present, summaries are generated; when it is missing or the API errors, the app silently continues without them.
+A single environment variable, `OPENAI_API_KEY`, controls how much of the AI stack is active:
 
-To enable summaries locally, set `OPENAI_API_KEY`:
+| `OPENAI_API_KEY` | Request handling | AI summaries |
+| --- | --- | --- |
+| **Set** | LLM tool-calling agent (`gpt-4o-mini`) plans and runs the analysis | Generated, unless toggled off in the UI |
+| **Missing / API error** | Regex planner + deterministic agent take over automatically | Silently skipped |
+
+The app is fully functional either way — the key upgrades the experience, it isn't a hard dependency. Every LLM call degrades gracefully: if the agent loop fails mid-run, the request is retried through the regex fallback, so a user always gets a result.
+
+To enable the agent and summaries locally, set `OPENAI_API_KEY`:
 
 Windows PowerShell:
 
