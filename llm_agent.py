@@ -69,7 +69,7 @@ def _parse_args(raw):
 
 
 def run_llm_agent(user_input, memory, tracer, *, client=None,
-                  model=DEFAULT_MODEL, max_rounds=10, max_tool_calls=16):
+                  model=DEFAULT_MODEL, max_rounds=10, max_tool_calls=24):
     """Run the agent loop; returns {"tickers", "period", "use_llm_summary"}."""
     executor = ToolExecutor(memory, tracer)
     messages = [
@@ -108,8 +108,11 @@ def run_llm_agent(user_input, memory, tracer, *, client=None,
 
             finished = False
             for call in calls:
-                tool_calls_used += 1
-                if tool_calls_used > max_tool_calls:
+                # finish is exempt from the budget: the loop must always be
+                # able to terminate cleanly.
+                if call.function.name != "finish":
+                    tool_calls_used += 1
+                if call.function.name != "finish" and tool_calls_used > max_tool_calls:
                     result = {"error": "Tool budget exhausted. Call finish() now."}
                 else:
                     result = executor.execute(

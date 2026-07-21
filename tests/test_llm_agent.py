@@ -78,6 +78,20 @@ def test_round_cap_stops_loop_and_backfills(memory, tracer, patched_tools):
     assert memory.get("AAPL_metrics") is not None  # backfilled
 
 
+def test_finish_is_exempt_from_tool_budget(memory, tracer, patched_tools):
+    # Budget of 1 is spent on the fetch; finish must still be allowed through.
+    client = FakeClient([
+        assistant_turn([tool_call("c1", "fetch_price_history", ticker="AAPL", period="1y")]),
+        assistant_turn([tool_call("c2", "fetch_news", ticker="AAPL"),
+                        tool_call("c3", "finish", tickers=["AAPL"], period="1y",
+                                  use_llm_summary=True)]),
+    ])
+    meta = run_llm_agent("Analyze AAPL", memory, tracer, client=client, max_tool_calls=1)
+    assert meta == {"tickers": ["AAPL"], "period": "1y", "use_llm_summary": True}
+    # the over-budget news call was refused, so the backfill supplied it
+    assert memory.get("AAPL_news") is not None
+
+
 def test_no_tickers_raises(memory, tracer, patched_tools):
     client = FakeClient([assistant_turn(content="I cannot help with that.")])
     with pytest.raises(LLMAgentError):

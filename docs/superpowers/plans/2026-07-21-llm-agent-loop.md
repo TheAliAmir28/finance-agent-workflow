@@ -12,7 +12,9 @@
 
 - Memory key contract is UNCHANGED: `{ticker}_data`, `{ticker}_status`, `{ticker}_error`, `{ticker}_period`, `{ticker}_metrics`, `{ticker}_chart_path`, `{ticker}_analyst_view`, `{ticker}_fundamentals`, `{ticker}_earnings`, `{ticker}_news`, `comparison`, `comparison_chart_path`, `use_llm_summary`.
 - Max 2 distinct tickers per run, enforced in `ToolExecutor.execute`, not just the prompt.
-- Model: `gpt-4o-mini`; client timeout 30s; `max_rounds=10`, `max_tool_calls=16`.
+- Model: `gpt-4o-mini`; client timeout 30s; `max_rounds=10`, `max_tool_calls=24`
+  (a full two-ticker run needs 18 calls; `finish` is budget-exempt so the loop
+  can always terminate cleanly — tuned after the live smoke test).
 - No new production dependencies (openai already in requirements.txt). pytest goes in `requirements-dev.txt` only.
 - No template (`templates/index.html`) changes. Trace events reuse existing tool ids (`planner`, `data`, `metrics`, `charts`, `analyst`, `fundamentals`, `earnings`, `news`, `compare`); backfilled steps use the real tool id with label prefix `Backfill: `.
 - Tests never touch the network: yfinance and OpenAI are always mocked/faked.
