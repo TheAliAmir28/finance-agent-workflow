@@ -230,21 +230,109 @@ class ToolExecutor:
                      "Close-price line chart generated", symbol, started)
         return {"chart": "saved"}
 
-    # Analyst / fundamentals / earnings / news / compare_tickers land in Task 3.
+    def _crypto_skip(self, symbol, tool, label, memory_key):
+        self.memory.set(memory_key, {"ticker": symbol, "available": False})
+        self._record(tool, label, "skip", "Not applicable for crypto assets", symbol)
+        return {"skipped": "crypto"}
+
+    def _enrichment(self, ticker, tool, label, memory_key_suffix, fetch, summarize):
+        symbol, err = self._require_data(ticker)
+        if err:
+            return err
+        if tool != "news" and is_crypto_symbol(symbol):
+            return self._crypto_skip(symbol, tool, label, f"{symbol}{memory_key_suffix}")
+        started = self.tracer.now()
+        try:
+            payload = fetch(symbol)
+        except Exception as exc:
+            fallback = ({"ticker": symbol, "available": False, "error": str(exc)}
+                        if tool != "news" else [])
+            self.memory.set(f"{symbol}{memory_key_suffix}", fallback)
+            logging.warning(f"{label} unavailable for {symbol}: {exc}")
+            self._record(tool, label, "warn", f"{label} unavailable", symbol, started)
+            return {"error": f"{label} unavailable: {exc}"}
+        self.memory.set(f"{symbol}{memory_key_suffix}", payload)
+        summary, status, detail = summarize(payload)
+        self._record(tool, label, status, detail, symbol, started)
+        return summary
+
     def _tool_fetch_analyst_view(self, ticker):
-        return {"error": "not implemented yet"}
+        def fetch(symbol):
+            latest_close = self.memory.get(f"{symbol}_data")["Close"].iloc[-1]
+            return analyst.fetch_analyst_view(symbol, latest_close)
+
+        def summarize(view):
+            if not view.get("available"):
+                return {"available": False}, "warn", "No analyst coverage available"
+            summary = {"available": True,
+                       "recommendation": view.get("recommendation"),
+                       "analyst_count": view.get("analyst_count"),
+                       "target_mean": view.get("target_mean"),
+                       "upside": view.get("upside")}
+            return summary, "ok", f"{view.get('recommendation', '—')} · " \
+                                  f"{view.get('analyst_count', '?')} analysts"
+        return self._enrichment(ticker, "analyst", "Fetch analyst coverage",
+                                "_analyst_view", fetch, summarize)
 
     def _tool_fetch_fundamentals(self, ticker):
-        return {"error": "not implemented yet"}
+        def summarize(payload):
+            if not payload.get("available"):
+                return {"available": False}, "warn", "Fundamentals unavailable"
+            summary = {"available": True, "sector": payload.get("sector"),
+                       "market_cap": payload.get("market_cap"),
+                       "pe_ratio": payload.get("pe_ratio")}
+            return summary, "ok", f"{payload.get('sector') or 'n/a'}"
+        return self._enrichment(ticker, "fundamentals", "Fetch company fundamentals",
+                                "_fundamentals",
+                                fundamentals.fetch_company_fundamentals, summarize)
 
     def _tool_fetch_earnings(self, ticker):
-        return {"error": "not implemented yet"}
+        def summarize(payload):
+            if not payload.get("available"):
+                return {"available": False}, "warn", "Earnings data unavailable"
+            summary = {"available": True,
+                       "fiscal_period": payload.get("fiscal_period"),
+                       "eps_actual": payload.get("eps_actual"),
+                       "eps_result": payload.get("eps_result")}
+            return summary, "ok", payload.get("fiscal_period") or "latest report"
+        return self._enrichment(ticker, "earnings", "Fetch earnings snapshot",
+                                "_earnings", earnings.fetch_earnings_snapshot, summarize)
 
     def _tool_fetch_news(self, ticker):
-        return {"error": "not implemented yet"}
+        def fetch(symbol):
+            return news.fetch_stock_news(symbol, limit=3)
+
+        def summarize(items):
+            count = len(items or [])
+            titles = [str(item.get("title") or "") for item in (items or [])][:3]
+            if count:
+                return ({"headline_count": count, "headlines": titles}, "ok",
+                        f"{count} recent headline{'s' if count != 1 else ''}")
+            return {"headline_count": 0}, "warn", "No recent news found"
+        return self._enrichment(ticker, "news", "Pull market news", "_news",
+                                fetch, summarize)
 
     def _tool_compare_tickers(self, ticker_a, ticker_b):
-        return {"error": "not implemented yet"}
+        symbol_a = normalize_crypto_symbol(str(ticker_a or "").strip().upper())
+        symbol_b = normalize_crypto_symbol(str(ticker_b or "").strip().upper())
+        metrics_a = self.memory.get(f"{symbol_a}_metrics")
+        metrics_b = self.memory.get(f"{symbol_b}_metrics")
+        if not metrics_a or not metrics_b:
+            missing = symbol_a if not metrics_a else symbol_b
+            return {"error": f"Cannot compare: no metrics for {missing}. "
+                             "The run can complete with the remaining ticker."}
+        started = self.tracer.now()
+        comparison = metrics.compare_metrics(metrics_a, metrics_b, symbol_a, symbol_b)
+        self.memory.set("comparison", comparison)
+        period = self.memory.get(f"{symbol_a}_period", "unknown")
+        chart_path = charts.plot_comparison_normalized(
+            self.memory.get(f"{symbol_a}_data"), self.memory.get(f"{symbol_b}_data"),
+            symbol_a, symbol_b, period, CHARTS_DIR)
+        self.memory.set("comparison_chart_path", str(Path(chart_path).resolve()))
+        detail = f"{symbol_a} vs {symbol_b} · winner: {comparison.get('winner') or 'tie'}"
+        self._record("compare", "Compare & build growth chart", "ok", detail,
+                     started=started)
+        return {"winner": comparison.get("winner"), "reason": comparison.get("reason")}
 
     def _tool_finish(self, tickers, period, use_llm_summary):
         cleaned = []
