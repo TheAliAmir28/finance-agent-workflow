@@ -7,7 +7,9 @@ from reports.dashboard import build_dashboard
 from pathlib import Path
 import argparse
 import logging
+import os
 from history import save_run_history
+from llm_agent import LLMAgentError, run_llm_agent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,12 +28,71 @@ def parse_args():
 
 # This function runs the full pipeline and returns a structured result dictionary
 def run_analysis_from_request(user_input, tracer=None):
-    # Set up core components
-    planner = Planner()
     memory = MemoryStore()
     # Shared tracer records every planner/agent step for the execution-trace UI.
     # A caller (e.g. the background job) may inject one wired to stream live.
     tracer = tracer or AgentTracer()
+
+    # Primary path: the LLM tool-calling agent decides which tools to run.
+    # Fallback path: the original regex Planner → Agent pipeline, used when no
+    # API key is configured or the LLM path fails for any reason.
+    if os.getenv("OPENAI_API_KEY"):
+        try:
+            meta = run_llm_agent(user_input, memory, tracer)
+            tickers, period = meta["tickers"], meta["period"]
+        except LLMAgentError as exc:
+            logging.warning("LLM agent unavailable, using fallback planner: %s", exc)
+            memory.clear()
+            tracer.record("planner", "LLM agent unavailable — regex fallback", "warn",
+                          detail=str(exc))
+            tickers, period = _run_regex_pipeline(user_input, memory, tracer)
+    else:
+        tickers, period = _run_regex_pipeline(user_input, memory, tracer)
+
+    is_comparison = len(tickers) == 2
+
+    # Build the HTML dashboard after tasks complete
+    dashboard_path = build_dashboard(
+        memory,
+        Path("output") / "dashboard" / "index.html"
+    )
+    logging.info(f"Dashboard created: {dashboard_path}")
+
+    # Generate report
+    synthesizer = ReportSynthesizer(memory)
+    report = synthesizer.generate_report(tickers, period)
+
+    # Build filename
+    if len(tickers) == 1:
+        filename = f"analysis_{tickers[0]}_{period}.txt"
+    else:
+        filename = f"comparison_{tickers[0]}_{tickers[1]}_{period}.txt"
+
+    # Save report to disk
+    synthesizer.save_report(report, filename)
+
+    report_path = Path("reports") / "generated" / filename
+
+    result = {
+        "report": report,
+        "report_path": str(report_path),
+        "dashboard_path": str(dashboard_path),
+        "tickers": tickers,
+        "period": period,
+        "memory": memory,
+        "is_comparison": is_comparison,
+        "trace": tracer.export(),
+    }
+
+    history_path = save_run_history(user_input, result)
+    result["history_path"] = str(history_path)
+
+    return result
+
+
+# The original Planner → Agent path, kept verbatim as the fallback.
+def _run_regex_pipeline(user_input, memory, tracer):
+    planner = Planner()
     agent = Agent(memory, tracer)
 
     try:
@@ -88,13 +149,6 @@ def run_analysis_from_request(user_input, tracer=None):
     except Exception as e:
         raise RuntimeError(f"Unexpected runtime error: {e}")
 
-    # Build the HTML dashboard after tasks complete
-    dashboard_path = build_dashboard(
-        agent.memory,
-        Path("output") / "dashboard" / "index.html"
-    )
-    logging.info(f"Dashboard created: {dashboard_path}")
-
     # Determine which tickers were involved
     tickers = []
     for task in tasks:
@@ -108,36 +162,7 @@ def run_analysis_from_request(user_input, tracer=None):
             period = task["period"]
             break
 
-    # Generate report
-    synthesizer = ReportSynthesizer(memory)
-    report = synthesizer.generate_report(tickers, period)
-
-    # Build filename
-    if len(tickers) == 1:
-        filename = f"analysis_{tickers[0]}_{period}.txt"
-    else:
-        filename = f"comparison_{tickers[0]}_{tickers[1]}_{period}.txt"
-
-    # Save report to disk
-    synthesizer.save_report(report, filename)
-
-    report_path = Path("reports") / "generated" / filename
-
-    result = {
-        "report": report,
-        "report_path": str(report_path),
-        "dashboard_path": str(dashboard_path),
-        "tickers": tickers,
-        "period": period,
-        "memory": memory,
-        "is_comparison": is_comparison,
-        "trace": tracer.export(),
-    }
-
-    history_path = save_run_history(user_input, result)
-    result["history_path"] = str(history_path)
-
-    return result
+    return tickers, period
 
 # CLI wrapper (main)
 def main():

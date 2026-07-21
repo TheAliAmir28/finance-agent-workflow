@@ -25,6 +25,7 @@ from tools.interactive_charts import (
 )
 from tools.analyst import brand_color_for_ticker, logo_candidates_for_ticker, logo_url_for_ticker
 from tools.crypto import is_crypto_symbol, normalize_crypto_symbol
+from tools.symbol_search import search_symbols
 
 app = Flask(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -779,56 +780,13 @@ def watchlist_summary():
     })
 
 
-# Typeahead suggestions hit Yahoo's search endpoint on (debounced) keystrokes,
-# so repeated queries are served from this small TTL cache instead of the
-# network — both for speed and to stay clear of Yahoo throttling.
-_SYMBOL_SEARCH_TTL = 600
-_SYMBOL_SEARCH_MAX_ENTRIES = 500
-_symbol_search_cache = {}
-_symbol_search_lock = threading.Lock()
-
-# Quote types that make sense in a watchlist; filters out options, futures, etc.
-_SEARCHABLE_QUOTE_TYPES = {"EQUITY", "ETF", "CRYPTOCURRENCY", "INDEX", "MUTUALFUND"}
-
-
+# Typeahead suggestions are served through tools/symbol_search.py, which hits
+# Yahoo's search endpoint behind a small TTL cache shared with the LLM agent's
+# resolve_symbol tool — both for speed and to stay clear of Yahoo throttling.
 @app.route("/api/symbol-search")
 def symbol_search():
     """Symbol suggestions for the watchlist add box (Google-style typeahead)."""
-    query = (request.args.get("q") or "").strip()
-    if not query:
-        return jsonify({"results": []})
-    cache_key = query.upper()
-
-    now = time.time()
-    with _symbol_search_lock:
-        cached = _symbol_search_cache.get(cache_key)
-        if cached and now - cached[1] < _SYMBOL_SEARCH_TTL:
-            return jsonify({"results": cached[0]})
-
-    try:
-        quotes = yf.Search(query, max_results=8, news_count=0).quotes or []
-    except Exception:
-        # Don't cache failures — the next keystroke should retry.
-        return jsonify({"results": []})
-
-    results = []
-    for quote in quotes:
-        symbol = str(quote.get("symbol") or "").strip().upper()
-        if not symbol or quote.get("quoteType") not in _SEARCHABLE_QUOTE_TYPES:
-            continue
-        results.append({
-            "symbol": symbol,
-            "name": quote.get("longname") or quote.get("shortname") or "",
-            "exchange": quote.get("exchDisp") or "",
-            "type": quote.get("typeDisp") or "",
-        })
-
-    with _symbol_search_lock:
-        if len(_symbol_search_cache) >= _SYMBOL_SEARCH_MAX_ENTRIES:
-            _symbol_search_cache.clear()
-        _symbol_search_cache[cache_key] = (results, now)
-
-    return jsonify({"results": results})
+    return jsonify({"results": search_symbols(request.args.get("q"))})
 
 
 @app.route("/watchlist/add", methods=["POST"])

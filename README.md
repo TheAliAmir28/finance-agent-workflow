@@ -2,14 +2,15 @@
 
 # Finance Agent Workflow
 
-### An agentic, multi-tool market-research platform that turns one plain-English request into a full equities & crypto research workspace — live in production on AWS.
+### An LLM agent that turns one plain-English request into a full equities & crypto research workspace — the model calls 10+ market-data tools itself, live in production on AWS.
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-Web_App-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Gunicorn](https://img.shields.io/badge/Gunicorn-WSGI-499848?style=for-the-badge&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
 [![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS-Elastic_Beanstalk-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/elasticbeanstalk/)
 [![Plotly](https://img.shields.io/badge/Plotly-Interactive_Charts-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-AI_Summaries-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Tool--Calling_Agent-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/)
+[![Tests](https://img.shields.io/badge/Tests-pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
 
 **[▶ Live Demo](https://askfinagent.com)** — running on AWS Elastic Beanstalk
 
@@ -32,7 +33,7 @@ Plan analyses from natural language, compare performance, inspect live prices, t
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Deployment](#deployment)
-- [Optional AI Summaries](#optional-ai-summaries)
+- [OpenAI Integration](#openai-integration)
 - [Project Structure](#project-structure)
 - [What This Project Demonstrates](#what-this-project-demonstrates)
 - [Limitations](#limitations)
@@ -43,7 +44,7 @@ Plan analyses from natural language, compare performance, inspect live prices, t
 
 ## Overview
 
-Finance Agent Workflow turns a natural-language finance request into a complete research workspace. Instead of one monolithic handler, it uses an **agentic pipeline**: a **Planner** parses the request into a structured task plan, an **Agent** executes those tasks across 10+ focused tools, and a shared **memory store** coordinates the results — which are then rendered into an interactive dashboard, live quote feeds, and a generated report.
+Finance Agent Workflow turns a natural-language finance request into a complete research workspace. Instead of one monolithic handler, it uses a **real LLM agent**: the model receives the request plus 10+ focused tools as function schemas and decides which to call — resolving company names to tickers, fetching prices, computing metrics, pulling analyst/earnings/fundamentals/news data — while a shared **memory store** coordinates the results into an interactive dashboard, live quote feeds, and a generated report. A deterministic completion check and a regex-planner fallback keep every run resilient, even with no API key at all.
 
 It supports both equities and major crypto assets through `yfinance`, and is **deployed in production on AWS Elastic Beanstalk** behind a Gunicorn WSGI server, with optional OpenAI-powered summaries enabled through environment-based secrets.
 
@@ -53,13 +54,13 @@ It is designed to feel like a compact research terminal: plan-driven, modular, r
 
 ## Architecture
 
-The system follows a **Planner → Agent → Tools → Memory** pattern, mirroring how modern AI agent frameworks decompose and execute work.
+The primary path is a genuine **LLM tool-calling agent loop**: the model (OpenAI `gpt-4o-mini`) receives the user's request plus the tool layer as function schemas, and decides which tools to call, in what order, until the research workspace is complete. A deterministic completion check then backfills anything the model skipped, and when no API key is configured (or the LLM path fails), the original regex **Planner → Agent** pipeline takes over — so the app always produces a result.
 
 ```mermaid
 flowchart LR
     A["Natural-language request"] --> B["Flask UI / API"]
-    B --> C["Planner<br/>(intent + entity extraction)"]
-    C --> D["Agent<br/>(task executor)"]
+    B --> C["LLM agent loop<br/>(tool calling, gpt-4o-mini)<br/>regex planner fallback"]
+    C --> D["Completion check<br/>(deterministic backfill)"]
     D --> E["Tool layer (10+)"]
     E --> E1["data_fetch · metrics · charts"]
     E --> E2["analyst · earnings · fundamentals"]
@@ -74,8 +75,10 @@ flowchart LR
     H -. deployed on .-> K["AWS Elastic Beanstalk<br/>(Gunicorn)"]
 ```
 
-- **Planner (`planner.py`)** — converts plain English into a structured task list: extracts tickers, company-name aliases, crypto symbols, time periods, custom date ranges (`from <date> to <date>`), and summary preferences.
-- **Agent (`agent.py`)** — executes the plan task-by-task, writing every result to shared memory and wrapping each third-party call so a partial failure never crashes the run.
+- **LLM agent (`llm_agent.py`)** — the tool-calling loop: hands the model the request and the tool schemas, executes each chosen tool, feeds compact results back, and stops at `finish()` or a hard iteration/budget cap. A code-level completion check guarantees the dashboard's data contract even if the model skips steps.
+- **Tool registry (`tools/agent_tools.py`)** — OpenAI function schemas plus dispatch wrappers around the tool layer; enforces the two-ticker cap in code, resolves company names via live Yahoo symbol search (`resolve_symbol`), and turns tool failures into error payloads the model can adapt to.
+- **Fallback planner (`planner.py`)** — converts plain English into a structured task list with regex/keyword parsing; used when no API key is set or the LLM path fails.
+- **Fallback agent (`agent.py`)** — executes the fallback plan task-by-task, writing every result to shared memory and wrapping each third-party call so a partial failure never crashes the run.
 - **Tool layer (`tools/`)** — focused, single-responsibility modules for data, metrics, charting, analyst data, earnings, fundamentals, news, crypto normalization, and the optional LLM client.
 - **Memory (`memory/store.py`)** — a shared key-value blackboard the planner, agent, reports, and dashboard all read from.
 - **Reports (`reports/`)** — synthesize a text report and build the dashboard artifact from memory.
@@ -86,7 +89,9 @@ flowchart LR
 
 | Feature | What It Does |
 | --- | --- |
-| Agentic task planning | Parses prompts like `Analyze AAPL and NVDA` or `Compare BTC and ETH from Jan 2024 to June 2024` into a structured, executable task plan. |
+| LLM tool-calling agent | The model reads the request and decides which of 10+ tools to call, in what order — resolving names to tickers, fetching prices, computing metrics, and pulling analyst/earnings/fundamentals/news data. Understands messy prompts like `Compare Apple vs Nvidia over 6 months` or `How did the maker of the iPhone do this year?`. |
+| Deterministic safety net | A completion check backfills any step the model skips, hard caps on iterations and tool calls bound cost, and a regex planner takes over with no API key — so every run finishes with a complete workspace. |
+| Live execution trace | A streaming panel replays the agent loop step by step — each model decision and tool call with real timing and status — turning the run into a transparent trace instead of a black box. |
 | Stocks and crypto | Supports equities plus crypto aliases such as `BTC`, `ETH`, `Bitcoin`, and `Ethereum` through normalized `yfinance` tickers. |
 | Live watchlist | Persistent watchlist (with optional share holdings) showing live prices, value-weighted daily P/L, position values, and an auto-generated leader/laggard narrative. |
 | Real-time quotes | Browser polling backed by concurrent quote endpoints (`ThreadPoolExecutor`, up to 20 parallel fetches) plus a bulk live market ticker tape. |
@@ -100,6 +105,7 @@ flowchart LR
 | Optional AI summaries | OpenAI-generated plain-English summaries that degrade gracefully when the key or API is unavailable. |
 | Recent runs | Saves previous analyses and lets you rerun them directly from the UI. |
 | Resilient by design | Every external call is isolated so missing fundamentals, earnings, or analyst data never breaks a run. |
+| Tested | An offline `pytest` suite covers the agent loop, tool dispatch, caps, and fallback routing — OpenAI and `yfinance` are faked, so no key or network is needed. |
 
 ---
 
@@ -145,6 +151,8 @@ Recent ticker-related headlines are pulled into the same workflow so research co
 
 ## Demo Prompts
 
+Straightforward requests:
+
 ```text
 Analyze AAPL and NVDA
 Analyze BTC and ETH
@@ -152,6 +160,15 @@ Analyze MSFT and GOOGL for 6 months
 Analyze TSLA for 3 months no summary
 Compare Bitcoin and Ethereum over 1 year
 Analyze AAPL from 2024-01 to 2024-06
+```
+
+Because an LLM agent parses the request, it also handles messy, conversational phrasing that a keyword parser can't — company names instead of tickers, typos, and casual comparisons:
+
+```text
+Compare Apple vs Nvidia over the last 6 months
+How did the maker of the iPhone do this year?
+Stack Costco up against that big-box rival Walmart
+Take a look at Nvidea for me       # typo — resolved to NVDA
 ```
 
 The app also includes dropdown controls for:
@@ -165,8 +182,10 @@ The app also includes dropdown controls for:
 
 The workflow is intentionally modular:
 
-- `planner.py` extracts tickers, crypto symbols, time periods, custom date ranges, and summary preferences.
-- `agent.py` executes the task plan, fetching data and analytics tool-by-tool with isolated error handling.
+- `llm_agent.py` runs the LLM tool-calling loop (with caps and a deterministic completion check) that orchestrates the analysis.
+- `tools/agent_tools.py` exposes the tool layer as OpenAI function schemas and writes every result into shared memory.
+- `planner.py` extracts tickers, crypto symbols, time periods, custom date ranges, and summary preferences (fallback path).
+- `agent.py` executes the fallback task plan, fetching data and analytics tool-by-tool with isolated error handling.
 - `tools/` contains focused data, charting, crypto, earnings, fundamentals, analyst, news, and LLM helpers.
 - `memory/store.py` is the shared store every stage reads from and writes to.
 - `reports/` synthesizes the text report and dashboard artifact.
@@ -180,13 +199,14 @@ The workflow is intentionally modular:
 | Layer | Tools |
 | --- | --- |
 | Backend | Python 3.11, Flask, Gunicorn |
-| Architecture | Planner / Agent / Tools / Memory pipeline |
+| Architecture | LLM tool-calling agent loop (OpenAI function calling) with a Planner / Agent / Tools / Memory fallback pipeline |
 | Concurrency | `ThreadPoolExecutor`, threaded WSGI, background cache warming |
 | Market data | yfinance |
 | Data processing | pandas, NumPy |
 | Visualization | Plotly, Matplotlib |
 | Frontend | HTML, CSS, JavaScript |
-| AI | OpenAI API (optional, graceful degradation) |
+| AI | OpenAI API — tool-calling agent loop + structured summaries (optional, graceful degradation) |
+| Testing | pytest (offline: OpenAI and yfinance faked/mocked) |
 | Deployment | AWS Elastic Beanstalk, Gunicorn, Procfile, environment-based secrets |
 
 ---
@@ -220,6 +240,13 @@ source .venv/bin/activate
 
 ```bash
 pip install -r requirements.txt
+```
+
+To run the test suite (fully offline — no API keys or network needed):
+
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
 
 ### 4. Run The App
@@ -259,11 +286,18 @@ Deployment notes:
 
 ---
 
-## Optional AI Summaries
+## OpenAI Integration
 
-The app works without an OpenAI API key — AI summaries are optional and can be toggled off from the UI. When a key is present, summaries are generated; when it is missing or the API errors, the app silently continues without them.
+A single environment variable, `OPENAI_API_KEY`, controls how much of the AI stack is active:
 
-To enable summaries locally, set `OPENAI_API_KEY`:
+| `OPENAI_API_KEY` | Request handling | AI summaries |
+| --- | --- | --- |
+| **Set** | LLM tool-calling agent (`gpt-4o-mini`) plans and runs the analysis | Generated, unless toggled off in the UI |
+| **Missing / API error** | Regex planner + deterministic agent take over automatically | Silently skipped |
+
+The app is fully functional either way — the key upgrades the experience, it isn't a hard dependency. Every LLM call degrades gracefully: if the agent loop fails mid-run, the request is retried through the regex fallback, so a user always gets a result.
+
+To enable the agent and summaries locally, set `OPENAI_API_KEY`:
 
 Windows PowerShell:
 
@@ -290,8 +324,9 @@ eb setenv OPENAI_API_KEY=your_api_key_here
 ```text
 finance-agent-workflow/
 |-- app.py                     # Flask routes, live quote / tape / watchlist APIs, UI orchestration
-|-- agent.py                   # Executes the task plan across the tool layer
-|-- planner.py                 # Parses requests into tickers, ranges, and options
+|-- llm_agent.py               # LLM tool-calling agent loop + deterministic completion check
+|-- agent.py                   # Fallback: executes the regex task plan across the tool layer
+|-- planner.py                 # Fallback: parses requests into tickers, ranges, and options
 |-- watchlist.py               # Watchlist persistence and daily P/L summary
 |-- history.py                 # Saves and loads recent analysis runs
 |-- main.py                    # CLI entry point
@@ -301,6 +336,8 @@ finance-agent-workflow/
 |-- templates/
 |   `-- index.html             # Main dashboard UI
 |-- tools/
+|   |-- agent_tools.py         # OpenAI tool schemas + dispatch wrappers for the agent loop
+|   |-- symbol_search.py       # Shared Yahoo symbol lookup (typeahead + resolve_symbol tool)
 |   |-- analyst.py             # Analyst recommendations and target data
 |   |-- charts.py              # Static chart helpers (Matplotlib)
 |   |-- crypto.py              # Crypto symbol normalization
@@ -324,8 +361,8 @@ finance-agent-workflow/
 
 ## What This Project Demonstrates
 
-- **Agentic system design** — a Planner/Agent/Tools/Memory pipeline that decomposes a request and orchestrates many focused tools.
-- **Natural-language parsing** — intent and entity extraction into a structured, executable plan.
+- **Agentic system design** — an LLM tool-calling loop that plans and orchestrates 10+ focused tools, hardened by iteration caps, code-enforced limits, and a deterministic completion check.
+- **Natural-language understanding** — model-driven intent/entity resolution (with live symbol search) plus a regex parsing fallback.
 - **Concurrency** — parallel live-quote pipelines with `ThreadPoolExecutor` and background cache warming behind a threaded WSGI server.
 - **Quantitative analytics** — return, volatility, Sharpe, CAGR, and drawdown computed from price history.
 - **Third-party API integration** — `yfinance` market data and the OpenAI API, both with graceful degradation.
@@ -352,7 +389,7 @@ It is more than a chart viewer: it is a small research system that plans work, f
 - Add persistent database-backed history and watchlist storage.
 - Add authentication for hosted deployments.
 - Add more data providers for richer earnings and analyst coverage.
-- Add automated tests and CI.
+- Add CI (the pytest suite exists; wire it into GitHub Actions).
 
 ---
 

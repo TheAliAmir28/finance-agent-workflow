@@ -103,7 +103,9 @@ Guarantees the dashboard is never half-empty.
 
 ## Guardrails
 
-- Iteration cap (~10 model rounds) and total tool-call budget (~16).
+- Iteration cap (~10 model rounds) and total tool-call budget (24 — a full
+  two-ticker run needs 18; `finish` is exempt so the loop can always
+  terminate cleanly).
 - 2-ticker cap enforced in `fetch_price_history` dispatch, not just the prompt.
 - Per-round client timeout so a hung API call cannot pin the job thread.
 - Whole-loop failure → clear memory → regex fallback rerun.
